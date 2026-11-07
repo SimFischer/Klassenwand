@@ -16,3 +16,5 @@ export async function POST(request: Request) {
     return json({ deleted: await cleanup() });
   });
 }
+// Vercel Cron ruft die Route mit GET und demselben Bearer-Secret auf.
+export const GET = POST;

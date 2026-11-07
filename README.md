@@ -6,7 +6,21 @@ Eine deutschsprachige Unterrichts-App mit **Wortwolke** und **Text-Pinnwand**. D
 
 Die GitHub-Repositoryseite zeigt den Quellcode und diese README. Ein Push auf `main` stellt allein noch keinen laufenden Webserver bereit. GitHub Pages kann diese App mit serverseitiger API und PostgreSQL nicht betreiben.
 
-Die Datei `render.yaml` bereitet Web-App, PostgreSQL 17 und Aufräum-Cron gemeinsam in **Frankfurt** vor:
+### Kostenlos: Vercel Hobby und Neon Free
+
+Die App kann mit Vercel Hobby und einer PostgreSQL-Datenbank im Neon-Free-Tarif betrieben werden. Gratislimits und die Bedingungen für persönliche, nichtkommerzielle Nutzung beachten. Keine Pro-Testphase und keinen kostenpflichtigen Neon-Tarif aktivieren. Bei ausgeschöpften Limits können Dienste pausieren; es gibt keine Verfügbarkeitsgarantie.
+
+1. Das GitHub-Repository in Vercel importieren und im Hobby-Tarif belassen.
+2. Im Projekt unter **Storage** eine **Neon-PostgreSQL-Datenbank im Free-Tarif** verbinden. Als Datenbankregion Frankfurt auswählen. Die gepoolte Verbindungsadresse als `DATABASE_URL` hinterlegen und für Produktion verfügbar machen. Keine Verbindungsdaten in Git einchecken.
+3. Ein zufälliges `CRON_SECRET` mit mindestens 32 Zeichen als geschützte Produktionsvariable hinzufügen. `NEXT_TELEMETRY_DISABLED=1` setzen.
+4. Erneut bereitstellen. `vercel.json` legt die Funktionsregion Frankfurt fest und führt vor dem Build die Datenbankmigration aus. Ein fehlendes `DATABASE_URL` führt bewusst zu einem fehlgeschlagenen Build, statt eine unvollständige App freizugeben. Vorschauen brauchen eine eigene isolierte Datenbank; Produktionszugangsdaten nicht für fremde Vorschau-Branches freigeben.
+5. Die von Vercel angezeigte Produktionsadresse öffnen. Lehrkraft und Klasse verwenden dieselbe Adresse; die Klasse benötigt kein Vercel-Konto. Die Produktionsadresse muss öffentlich erreichbar sein.
+
+Der kostenlose Vercel-Cron ruft den geschützten GET-Endpunkt täglich gegen 03:00 UTC auf. Aktivitäten sind trotzdem exakt ab sieben Tagen nicht mehr erreichbar; die physische Löschung erfolgt beim nächsten erfolgreichen täglichen Lauf. Die Ausführung kann im Hobby-Tarif innerhalb der geplanten Stunde variieren. POST bleibt für andere Cron-Anbieter verfügbar. In Vercel steht kein separater kostenpflichtiger Cron-Dienst an.
+
+### Optional: Render (kostenpflichtig)
+
+Die Datei `render.yaml` ist eine alternative, **kostenpflichtige** Bereitstellungsvorlage für Web-App, PostgreSQL 17 und Aufräum-Cron in Frankfurt. Sie wird für den kostenlosen Vercel-Betrieb nicht benötigt:
 
 **[Klassenwand auf Render bereitstellen](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FSimFischer%2FKlassenwand)**
 
@@ -102,7 +116,7 @@ Beispiel für einen System-Cron (Secret über die geschützte Umgebung des Jobs 
 */15 * * * * curl --fail --silent --show-error --request POST https://DEINE-DOMAIN/api/cron/cleanup --header "Authorization: Bearer $CRON_SECRET"
 ```
 
-Der Endpunkt erlaubt ausschließlich POST mit gültigem Bearer-Secret. Antwort: `{"deleted": <Anzahl>}`. Er löscht abgelaufene Aktivitäten einschließlich aller Wörter, Blacklists, Beiträge, Antworten und Gerätebudgets sowie abgelaufene Erstellungszähler. Fehlgeschlagene Cron-Jobs beim Anbieter überwachen. Bei gestörtem Cron bleiben Aktivitäten weiterhin sofort ab Ablauf unzugänglich; die physische Löschung erfolgt beim nächsten erfolgreichen Lauf.
+Der Endpunkt erlaubt POST und für Vercel Cron auch GET, jeweils ausschließlich mit gültigem Bearer-Secret. Antwort: `{"deleted": <Anzahl>}`. Er löscht abgelaufene Aktivitäten einschließlich aller Wörter, Blacklists, Beiträge, Antworten und Gerätebudgets sowie abgelaufene Erstellungszähler. Fehlgeschlagene Cron-Jobs beim Anbieter überwachen. Bei gestörtem Cron bleiben Aktivitäten weiterhin sofort ab Ablauf unzugänglich; die physische Löschung erfolgt beim nächsten erfolgreichen Lauf.
 
 ## Qualität prüfen
 
