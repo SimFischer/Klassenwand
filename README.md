@@ -2,6 +2,22 @@
 
 Eine deutschsprachige Unterrichts-App mit **Wortwolke** und **Text-Pinnwand**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Datei-Pinnwand ist ausschließlich eine inaktive „Kommt bald“-Karte. `/b/...` und `/api/boards/...` sind reserviert.
 
+## App online öffnen / veröffentlichen
+
+Die GitHub-Repositoryseite zeigt den Quellcode und diese README. Ein Push auf `main` stellt allein noch keinen laufenden Webserver bereit. GitHub Pages kann diese App mit serverseitiger API und PostgreSQL nicht betreiben.
+
+Die Datei `render.yaml` bereitet Web-App, PostgreSQL 17 und Aufräum-Cron gemeinsam in **Frankfurt** vor:
+
+**[Klassenwand auf Render bereitstellen](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FSimFischer%2FKlassenwand)**
+
+1. Mit einem Render-Konto öffnen und das Repository freigeben.
+2. Den Blueprint prüfen. Er enthält **kostenpflichtige** Ressourcen: einen Webdienst mit 512 MB RAM, eine PostgreSQL-Instanz mit 256 MB RAM und 1 GB Speicher sowie einen Cron-Dienst. Die verbindlichen aktuellen Preise werden vor dem Bestätigen im Render-Dashboard angezeigt. Durch das Einchecken der Datei allein entstehen keine Ressourcen oder Kosten.
+3. Bereitstellung erst nach Prüfung von Preisen, Vertrags-/Datenschutzbedingungen und Protokollierung bestätigen. Frankfurt legt den Ausführungsort fest; eine vollständige Datenschutzprüfung des Anbieters ersetzt diese Einstellung nicht. Insbesondere die Anforderung, keine IP-Adressen zu speichern, muss auch für die Infrastruktur erfüllt sein.
+4. Render setzt `DATABASE_URL` automatisch und erzeugt ein zufälliges `CRON_SECRET`. Migrationen laufen vor jedem Deploy. Tests und Produktionsbuild laufen während des Builds. Die Datenbank ist nur über das private Netzwerk erreichbar.
+5. Nach erfolgreichem Deploy die **von Render angezeigte Webdienst-URL** öffnen und teilen – nicht den GitHub-Link. Die konkrete URL ist erst nach Bereitstellung bekannt.
+
+Der Cron ruft alle 15 Minuten den geschützten Aufräum-Endpunkt über das private Netzwerk auf. Neue Commits auf `main` lösen nach der ersten Einrichtung automatische Deployments aus. Die Vorlage ist aktuell vorbereitet, sie weist noch keine laufende Bereitstellung nach.
+
 ## Lokal starten
 
 Voraussetzungen: Node.js **22.9 oder neuer**, npm und PostgreSQL 17 (oder eine kompatible aktuelle PostgreSQL-Version). Optional Docker Compose für die lokale Datenbank.

@@ -1,0 +1,61 @@
+# Bereitstellung erzeugt kostenpflichtige Ressourcen.
+# Vor dem Bestätigen die aktuellen Preise im Render-Dashboard prüfen.
+services:
+  - type: web
+    name: klassenwand
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: npm ci --include=dev && npm test && npm run build
+    preDeployCommand: npm run db:migrate
+    startCommand: npm start -- --hostname 0.0.0.0
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: klassenwand-db
+          property: connectionString
+      - key: CRON_SECRET
+        generateValue: true
+
+  - type: cron
+    name: klassenwand-cleanup
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    branch: main
+    autoDeployTrigger: commit
+    schedule: "*/15 * * * *"
+    buildCommand: node --version
+    startCommand: node scripts/cleanup.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: APP_HOSTPORT
+        fromService:
+          type: web
+          name: klassenwand
+          property: hostport
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: klassenwand
+          envVarKey: CRON_SECRET
+
+databases:
+  - name: klassenwand-db
+    region: frankfurt
+    plan: 0.1c-256mb
+    diskSizeGB: 1
+    postgresMajorVersion: "17"
+    databaseName: klassenwand
+    user: klassenwand
+    ipAllowList: []
