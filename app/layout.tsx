@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "Klassenwand · Gemeinsam denken",
+  title: "Klassenwand",
   description:
     "Wortwolken und Text-Pinnwände für deinen Unterricht. Ohne Anmeldung.",
   robots: { index: false, follow: false },
@@ -19,16 +19,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </span>
             klassenwand<span className="brand-dot">.</span>
           </Link>
-          <span className="header-note">Ein Raum für alle Gedanken.</span>
         </header>
         {children}
-        <footer>
-          <span>Gemeinsam denken. Einfach mitmachen.</span>
-          <nav>
-            <Link href="/impressum">Impressum</Link>
-            <Link href="/datenschutz">Datenschutz</Link>
-          </nav>
-        </footer>
       </body>
     </html>
   );

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Kind } from "@/lib/types";
 import type { Action } from "@/lib/validation";
 import { participantId, remember, forget } from "@/lib/client";
@@ -23,7 +23,37 @@ export function ActivityView({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [actionError, setActionError] = useState(""),
-    [missingKey, setMissingKey] = useState(false);
+    [missingKey, setMissingKey] = useState(false),
+    [cloudOnly, setCloudOnly] = useState(false);
+  const presentationButton = useRef<HTMLButtonElement>(null);
+  const exitPresentationButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!cloudOnly) return;
+    const header = document.querySelector<HTMLElement>(".site-header");
+    const previousInert = header?.inert ?? false;
+    const previousOverflow = document.body.style.overflow;
+    if (header) header.inert = true;
+    document.body.style.overflow = "hidden";
+    exitPresentationButton.current?.focus();
+    function keyboard(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setCloudOnly(false);
+      }
+    }
+    function fullscreenChanged() {
+      if (!document.fullscreenElement) setCloudOnly(false);
+    }
+    document.addEventListener("keydown", keyboard);
+    document.addEventListener("fullscreenchange", fullscreenChanged);
+    return () => {
+      document.removeEventListener("keydown", keyboard);
+      document.removeEventListener("fullscreenchange", fullscreenChanged);
+      if (header) header.inert = previousInert;
+      document.body.style.overflow = previousOverflow;
+      presentationButton.current?.focus();
+    };
+  }, [cloudOnly]);
   useEffect(() => {
     try {
       participantId();
@@ -165,6 +195,27 @@ export function ActivityView({
       </main>
     );
   const d = data.data;
+  if (cloudOnly && data.host && kind === "w") {
+    return (
+      <main className="cloud-presentation" aria-label="Wortwolke für die Tafel">
+        <WordCloud words={d.words} />
+        <button
+          ref={exitPresentationButton}
+          className="presentation-exit"
+          aria-label="Zur Lehrkraftansicht zurückkehren (Esc)"
+          title="Zurück zur Lehrkraftansicht (Esc)"
+          onClick={() => setCloudOnly(false)}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+        {error && (
+          <p role="alert" className="presentation-error">
+            {error}
+          </p>
+        )}
+      </main>
+    );
+  }
   return (
     <main className={`activity ${hostMode ? "host-view" : "student-view"}`}>
       <div className="activity-heading">
@@ -194,6 +245,13 @@ export function ActivityView({
           </button>
           {kind === "w" ? (
             <>
+              <button
+                ref={presentationButton}
+                onClick={() => setCloudOnly(true)}
+                aria-label="Nur die Wortwolke groß anzeigen"
+              >
+                ⛶ Nur Wortwolke
+              </button>
               <button
                 disabled={busy}
                 onClick={() =>
@@ -341,9 +399,6 @@ export function ActivityView({
           timeStyle: "short",
         })}
         .
-        {data.host
-          ? " Dein Lehrkraft-Link ist geheim. Teile nur den QR-Code bzw. den Teilnahmelink."
-          : ""}
       </p>
     </main>
   );

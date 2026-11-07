@@ -47,9 +47,6 @@ export default function Home() {
   return (
     <main className="home">
       <section className="intro">
-        <p className="eyebrow">
-          <span /> DER UNTERRICHT LEBT VOM MITMACHEN
-        </p>
         <h1>
           Viele Köpfe.
           <br />
@@ -57,13 +54,8 @@ export default function Home() {
         </h1>
         <p className="lead">
           Mach Gedanken sichtbar. Sammle Ideen, stelle Fragen und bring deine
-          Klasse ins Gespräch – ganz ohne Anmeldung.
+          Klasse ins Gespräch.
         </p>
-        <div className="benefits">
-          <span>✓ Kein Konto nötig</span>
-          <span>✓ Per QR-Code dabei</span>
-          <span>✓ Nach 7 Tagen gelöscht</span>
-        </div>
       </section>
       <section aria-labelledby="tools-title">
         <div className="section-heading">
@@ -199,14 +191,6 @@ export default function Home() {
           </div>
         )}
       </section>
-      <aside className="privacy-note">
-        <span>◈</span>
-        <p>
-          <strong>Wenig Daten. Viel Austausch.</strong> Keine Konten, kein
-          Tracking, keine externen Inhalte. Alle Aktivitäten werden nach 7 Tagen
-          automatisch gelöscht.
-        </p>
-      </aside>
       {tool && (
         <Modal labelledBy="create-title" onClose={() => setTool(null)}>
           <button
@@ -273,10 +257,6 @@ export default function Home() {
                 />
               </label>
             )}
-            <p className="hint">
-              Gleich erhältst du deinen geheimen Lehrkraft-Link und den QR-Code
-              für deine Klasse.
-            </p>
             {error && (
               <p role="alert" className="error">
                 {error}

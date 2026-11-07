@@ -83,8 +83,7 @@ export function WordCloud({
       {!words.length ? (
         <div className="cloud-empty">
           <span>☁</span>
-          <h2>Jeder Gedanke zählt.</h2>
-          <p>Die ersten Begriffe erscheinen gleich hier.</p>
+          <p>Noch keine Begriffe.</p>
         </div>
       ) : (
         <svg
