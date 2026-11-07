@@ -1,10 +1,14 @@
 # Klassenwand
 
+## [→ Klassenwand jetzt öffnen](https://klassenwand.vercel.app/)
+
+**Für den Unterricht: https://klassenwand.vercel.app/** – Werkzeug auswählen, Aktivität erstellen und den QR-Code zeigen. Kein Konto für Lehrkraft oder Klasse erforderlich.
+
 Eine deutschsprachige Unterrichts-App mit **Wortwolke** und **Text-Pinnwand**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Datei-Pinnwand ist ausschließlich eine inaktive „Kommt bald“-Karte. `/b/...` und `/api/boards/...` sind reserviert.
 
-## App online öffnen / veröffentlichen
+## Hosting und eigene Bereitstellung
 
-Die GitHub-Repositoryseite zeigt den Quellcode und diese README. Ein Push auf `main` stellt allein noch keinen laufenden Webserver bereit. GitHub Pages kann diese App mit serverseitiger API und PostgreSQL nicht betreiben.
+Die App läuft auf Vercel mit einer Neon-Datenbank in Frankfurt. Die folgenden Hinweise beschreiben die Einrichtung einer eigenen Instanz. Die GitHub-Repositoryseite zeigt den Quellcode und diese README. Die GitHub-Pages-Adresse leitet über `index.html` zur laufenden App weiter; sie betreibt selbst keinen Next.js-Server und keine Datenbank.
 
 ### Kostenlos: Vercel Hobby und Neon Free
 
