@@ -34,7 +34,7 @@ Der Cron ruft alle 15 Minuten den geschützten Aufräum-Endpunkt über das priva
 
 ## Lokal starten
 
-Voraussetzungen: Node.js **22.9 oder neuer**, npm und PostgreSQL 17 (oder eine kompatible aktuelle PostgreSQL-Version). Optional Docker Compose für die lokale Datenbank.
+Voraussetzungen: Node.js **24 LTS**, npm und PostgreSQL 17 (oder eine kompatible aktuelle PostgreSQL-Version). Optional Docker Compose für die lokale Datenbank. Die Hauptversion ist in `package.json` und `.node-version` festgelegt.
 
 ```sh
 npm ci
