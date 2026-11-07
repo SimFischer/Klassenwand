@@ -1,0 +1,350 @@
+"use client";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Kind } from "@/lib/types";
+import type { Action } from "@/lib/validation";
+import { participantId, remember, forget } from "@/lib/client";
+import { usePolling } from "@/lib/use-polling";
+import { QRPanel } from "./qr-panel";
+import { WordCloud } from "./word-cloud";
+import { TextBoard } from "./text-board";
+export function ActivityView({
+  id,
+  kind,
+  hostMode,
+}: {
+  id: string;
+  kind: Kind;
+  hostMode: boolean;
+}) {
+  const [key, setKey] = useState<string | null>(null),
+    [ready, setReady] = useState(false),
+    [url, setUrl] = useState(""),
+    [qr, setQr] = useState(hostMode),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [actionError, setActionError] = useState(""),
+    [missingKey, setMissingKey] = useState(false);
+  useEffect(() => {
+    try {
+      participantId();
+      const hostKey = hostMode
+        ? new URLSearchParams(location.search).get("key")
+        : null;
+      setMissingKey(hostMode && !hostKey);
+      setKey(hostKey);
+      setUrl(`${location.origin}/${kind}/${id}`);
+      setReady(!hostMode || !!hostKey);
+    } catch {
+      setActionError(
+        "Bitte erlaube den lokalen Browserspeicher, um mitzumachen.",
+      );
+    }
+  }, [hostMode, id, kind]);
+  const api = `/api/${kind}/${id}`,
+    { data, error, terminal, refresh, setData } = usePolling(api, key, ready);
+  useEffect(() => {
+    if (data?.host && key) {
+      try {
+        remember({
+          title: data.title,
+          kind,
+          link: `/${kind}/${id}/host?key=${key}`,
+          date: data.createdAt,
+        });
+      } catch {
+        /* The current activity remains usable. */
+      }
+    }
+  }, [data?.title, data?.createdAt, data?.host, id, key, kind]);
+  async function send(action: Action) {
+    if (busy) return false;
+    const previous = data;
+    const optimistic =
+      action.action === "blacklist" && !action.restore && data?.host;
+    if (optimistic && action.action === "blacklist") {
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              data: {
+                ...current.data,
+                words: current.data.words.filter(
+                  (w) => w.normalized !== action.word,
+                ),
+                blacklist: [
+                  ...new Set([...current.data.blacklist, action.word]),
+                ],
+              },
+            }
+          : current,
+      );
+    }
+    setBusy(true);
+    setActionError("");
+    setMessage("");
+    try {
+      const response = await fetch(api, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-participant-id": participantId(),
+          ...(key ? { "x-host-key": key } : {}),
+        },
+        body: JSON.stringify(action),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      refresh();
+      return true;
+    } catch (e) {
+      if (optimistic)
+        setData((current) =>
+          current && previous && current.revision <= previous.revision
+            ? previous
+            : current,
+        );
+      setActionError(
+        e instanceof Error ? e.message : "Speichern fehlgeschlagen.",
+      );
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function submitWord(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    if (
+      await send({
+        action: "word",
+        text: String(new FormData(form).get("word")),
+      })
+    ) {
+      form.reset();
+      setMessage("Danke, dein Begriff ist angekommen!");
+    }
+  }
+  async function remove() {
+    if (!confirm("Diese Aktivität und alle Beiträge endgültig löschen?"))
+      return;
+    setBusy(true);
+    try {
+      const response = await fetch(api, {
+        method: "DELETE",
+        headers: { "x-host-key": key! },
+      });
+      if (!response.ok) throw new Error((await response.json()).error);
+      try {
+        forget(`/${kind}/${id}/host?key=${key}`);
+      } catch {}
+      location.assign("/");
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "Löschen fehlgeschlagen.",
+      );
+      setBusy(false);
+    }
+  }
+  if (missingKey || terminal)
+    return (
+      <main className="activity">
+        <h1>{missingKey ? "Lehrkraft-Link unvollständig" : error}</h1>
+        <p>
+          Bitte verwende den vollständigen Link oder erstelle eine neue
+          Aktivität.
+        </p>
+        <a href="/">Zur Startseite →</a>
+      </main>
+    );
+  if (!data)
+    return (
+      <main className="activity">
+        <p role="status">
+          {error || actionError || "Deine Klassenwand wird geladen …"}
+        </p>
+      </main>
+    );
+  const d = data.data;
+  return (
+    <main className={`activity ${hostMode ? "host-view" : "student-view"}`}>
+      <div className="activity-heading">
+        <div>
+          <p className="eyebrow">
+            {kind === "w" ? "WORTWOLKE" : "TEXT-PINNWAND"}{" "}
+            <span className={`live-dot ${d.paused ? "paused" : ""}`} />
+            {d.paused ? " EINGABE PAUSIERT" : " LIVE"}
+            {data.host ? " · LEHRKRAFT-ANSICHT" : ""}
+          </p>
+          <h1>{data.title}</h1>
+        </div>
+        <span className="contribution-count">
+          <b>{d.total}</b> Beiträge
+        </span>
+      </div>
+      {data.host && (
+        <div className="toolbar no-print">
+          <button onClick={() => setQr(!qr)}>
+            {qr ? "QR-Code ausblenden" : "QR-Code anzeigen"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => void send({ action: "settings", paused: !d.paused })}
+          >
+            {d.paused ? "▶ Eingaben öffnen" : "Ⅱ Eingaben pausieren"}
+          </button>
+          {kind === "w" ? (
+            <>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void send({ action: "settings", showCloud: !d.showCloud })
+                }
+              >
+                {d.showCloud
+                  ? "Wolke für Schüler verbergen"
+                  : "Wolke für Schüler zeigen"}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  if (confirm("Alle Begriffe und die Blacklist zurücksetzen?"))
+                    void send({ action: "reset" });
+                }}
+              >
+                Zurücksetzen
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={d.approval}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void send({
+                      action: "settings",
+                      approval: e.target.checked,
+                    })
+                  }
+                />
+                Freigabe-Modus
+              </label>
+              <button onClick={() => window.print()}>↓ Drucken / PDF</button>
+            </>
+          )}
+          <button
+            onClick={async () => {
+              try {
+                if (document.fullscreenElement) await document.exitFullscreen();
+                else await document.documentElement.requestFullscreen();
+              } catch {
+                setActionError(
+                  "Vollbild ist in diesem Browser nicht verfügbar.",
+                );
+              }
+            }}
+          >
+            ⛶ Vollbild
+          </button>
+          <button className="danger" disabled={busy} onClick={remove}>
+            Aktivität löschen
+          </button>
+        </div>
+      )}
+      {(error || actionError) && (
+        <p role="alert" className="error no-print">
+          {actionError || error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="success">
+          {message}
+        </p>
+      )}
+      <div className={`activity-content ${qr ? "with-qr" : ""}`}>
+        <section className="activity-workspace">
+          {kind === "w" ? (
+            <>
+              {!data.host && (
+                <form className="word-form" onSubmit={submitWord}>
+                  <label>
+                    Dein Begriff
+                    <input
+                      name="word"
+                      required
+                      maxLength={d.maxLength}
+                      disabled={busy || d.paused || d.ownCount >= d.maxWords}
+                      placeholder="Was fällt dir dazu ein?"
+                      autoComplete="off"
+                    />
+                  </label>
+                  <button
+                    className="primary"
+                    disabled={busy || d.paused || d.ownCount >= d.maxWords}
+                  >
+                    Begriff senden →
+                  </button>
+                  <p className="hint">
+                    {d.paused
+                      ? "Die Lehrkraft hat die Eingabe gerade pausiert."
+                      : d.ownCount >= d.maxWords
+                        ? "Du hast alle deine Begriffe gesendet. Vielen Dank!"
+                        : `Noch ${d.maxWords - d.ownCount} ${d.maxWords - d.ownCount === 1 ? "Begriff" : "Begriffe"} · maximal ${d.maxLength} Zeichen`}
+                  </p>
+                </form>
+              )}
+              {(data.host || d.showCloud) && (
+                <WordCloud
+                  words={d.words}
+                  onHide={
+                    data.host
+                      ? (word) => {
+                          void send({
+                            action: "blacklist",
+                            word,
+                            restore: false,
+                          });
+                        }
+                      : undefined
+                  }
+                />
+              )}
+              {data.host && (
+                <details className="blacklist no-print">
+                  <summary>Ausgeblendete Wörter ({d.blacklist.length})</summary>
+                  <p className="hint">Zum Wiederherstellen anklicken.</p>
+                  {d.blacklist.map((word) => (
+                    <button
+                      disabled={busy}
+                      key={word}
+                      onClick={() =>
+                        void send({ action: "blacklist", word, restore: true })
+                      }
+                    >
+                      {word} ↶
+                    </button>
+                  ))}
+                </details>
+              )}
+            </>
+          ) : (
+            <TextBoard data={data} send={send} busy={busy} />
+          )}
+        </section>
+        {qr && <QRPanel url={url} />}
+      </div>
+      <p className="expiry">
+        Automatische Löschung am{" "}
+        {new Date(data.expiresAt).toLocaleString("de-DE", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}
+        .
+        {data.host
+          ? " Dein Lehrkraft-Link ist geheim. Teile nur den QR-Code bzw. den Teilnahmelink."
+          : ""}
+      </p>
+    </main>
+  );
+}
