@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import type { Snapshot, PublicPost } from "@/lib/types";
 import type { Action } from "@/lib/validation";
 import { Modal } from "./modal";
@@ -123,6 +123,7 @@ export function TextBoard({ data, send, busy }: Props) {
         )}
         <div className="post-actions no-print">
           <button
+            className="reply-action"
             onClick={() => {
               setEditing(null);
               setReference("");
@@ -234,8 +235,14 @@ export function TextBoard({ data, send, busy }: Props) {
     );
   }
   return (
-    <>
-      <div className={`board-columns ${dragged ? "dragging" : ""}`}>
+    <div className="text-board">
+      <div
+        className={`board-columns ${dragged ? "dragging" : ""}`}
+        style={{ "--column-count": d.columns.length } as CSSProperties}
+        role="region"
+        aria-label="Text-Pinnwand"
+        tabIndex={0}
+      >
         {d.columns.map((column, index) => (
           <section
             className="board-column"
@@ -260,6 +267,7 @@ export function TextBoard({ data, send, busy }: Props) {
               </span>
               <h2>{column.title}</h2>
               <span className="count">
+                <span className="sr-only">Beiträge: </span>
                 {
                   d.posts.filter((p) => p.columnId === column.id && !p.parentId)
                     .length
@@ -361,19 +369,19 @@ export function TextBoard({ data, send, busy }: Props) {
             </button>
           </section>
         ))}
-        {host && d.columns.length < 12 && (
-          <button
-            className="add-column no-print"
-            disabled={busy}
-            onClick={() => {
-              const title = prompt("Frage oder Überschrift der neuen Spalte");
-              if (title?.trim()) void send({ action: "column-add", title });
-            }}
-          >
-            + Spalte
-          </button>
-        )}
       </div>
+      {host && d.columns.length < 12 && (
+        <button
+          className="add-column no-print"
+          disabled={busy}
+          onClick={() => {
+            const title = prompt("Frage oder Überschrift der neuen Spalte");
+            if (title?.trim()) void send({ action: "column-add", title });
+          }}
+        >
+          + Spalte
+        </button>
+      )}
       {(composer || editing) && (
         <Modal
           labelledBy="post-dialog-title"
@@ -450,6 +458,6 @@ export function TextBoard({ data, send, busy }: Props) {
           </form>
         </Modal>
       )}
-    </>
+    </div>
   );
 }

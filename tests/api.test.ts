@@ -9,6 +9,7 @@ import { handlers } from "../lib/routes";
 import { POST as cleanupRoute } from "../app/api/cron/cleanup/route";
 import { activities } from "../lib/db/schema";
 import { eq } from "drizzle-orm";
+import type { Action } from "../lib/validation";
 let pg: PGlite;
 const participant = "46e9029c-b268-44b5-b0f4-123456789abc";
 function req(path: string, method = "GET", data?: unknown, key?: string) {
@@ -179,6 +180,71 @@ describe("API mit echter PostgreSQL-Engine (PGlite)", () => {
       (await api.DELETE(req("/api/t/" + id, "DELETE", undefined, key), ctx))
         .status,
     ).toBe(200);
+  });
+  it("weist Schülerzugriffe auf Verwaltung und fremde Beiträge serverseitig zurück", async () => {
+    const { id, key } = await (
+      await create(
+        req("/api/activities", "POST", {
+          kind: "t",
+          title: "Rechteprüfung",
+          columns: ["Frage", "Ideen"],
+          participantId: participant,
+        }),
+      )
+    ).json();
+    const api = handlers("t"),
+      ctx = { params: Promise.resolve({ id }) };
+    const state = async () => (await api.GET(req(`/api/t/${id}`), ctx)).json();
+    const initial = await state();
+    const c1 = initial.data.columns[0].id,
+      c2 = initial.data.columns[1].id;
+    await api.POST(
+      req(
+        `/api/t/${id}`,
+        "POST",
+        { action: "post", columnId: c1, text: "Lehrerbeitrag" },
+        key,
+      ),
+      ctx,
+    );
+    const before = await state();
+    const postId = before.data.posts[0].id;
+    const forbidden: Action[] = [
+      { action: "post-edit", id: postId, text: "Fremde Änderung" },
+      { action: "post-delete", id: postId },
+      { action: "post-moderate", id: postId, hidden: true },
+      { action: "post-moderate", id: postId, hidden: false },
+      { action: "post-moderate", id: postId, approved: true },
+      { action: "post-move", id: postId, columnId: c2 },
+      { action: "column-add", title: "Unerlaubt" },
+      { action: "column-update", id: c1, title: "Unerlaubt" },
+      { action: "column-update", id: c1, closed: true },
+      { action: "column-update", id: c1, closed: false },
+      { action: "column-move", id: c1, direction: 1 },
+      { action: "column-delete", id: c1 },
+    ];
+    for (const action of forbidden) {
+      const request = req(`/api/t/${id}`, "POST", action);
+      request.headers.set(
+        "x-participant-id",
+        "a3e9029c-b268-44b5-b0f4-123456789abc",
+      );
+      expect((await api.POST(request, ctx)).status, action.action).toBe(403);
+    }
+    expect(await state()).toEqual(before);
+    expect(
+      (
+        await api.POST(
+          req(
+            `/api/t/${id}`,
+            "POST",
+            { action: "column-delete", id: c1 },
+            "falsch",
+          ),
+          ctx,
+        )
+      ).status,
+    ).toBe(403);
   });
   it("validiert Eingaben und begrenzt die Erstellung dauerhaft", async () => {
     expect(
