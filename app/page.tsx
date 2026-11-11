@@ -217,20 +217,29 @@ export default function Home() {
               Quiz erstellen <span>→</span>
             </span>
           </button>
-          <article className="tool-card soon-card">
+          <a
+            className="tool-card file-card"
+            href="https://pinnwand-bn.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <span className="tool-number">05 / INHALTE VERBINDEN</span>
             <div className="file-illustration" aria-hidden="true">
               <span>▧</span>
               <span>≡</span>
               <span>⌁</span>
             </div>
-            <h3>Datei-Pinnwand</h3>
+            <h3>
+              Datei-Pinnwand <span>↗</span>
+            </h3>
             <p>
               Bilder, PDFs und Materialien auf einer freien Fläche sammeln,
               anordnen und verbinden.
             </p>
-            <span className="soon-label">Kommt bald</span>
-          </article>
+            <span className="card-action">
+              Pinnwand öffnen <span>→</span>
+            </span>
+          </a>
         </div>
       </section>
       <section className="saved-section">

@@ -2353,3 +2353,9 @@ form label.image-pick {
   font-size: 18px;
   font-weight: 700;
 }
+.file-card,
+.file-card:hover {
+  background: #eef3f4;
+  color: inherit;
+  text-decoration: none;
+}

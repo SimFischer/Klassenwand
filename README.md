@@ -4,7 +4,7 @@
 
 **Für den Unterricht: https://klassenwand.vercel.app/** – Werkzeug auswählen, Aktivität erstellen und den QR-Code zeigen. Kein Konto für Lehrkraft oder Klasse erforderlich.
 
-Eine deutschsprachige Unterrichts-App mit **Wortwolke**, **Text-Pinnwand**, **Umfrage** und **Quiz**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Datei-Pinnwand ist ausschließlich eine inaktive „Kommt bald“-Karte. `/b/...` und `/api/boards/...` sind reserviert.
+Eine deutschsprachige Unterrichts-App mit **Wortwolke**, **Text-Pinnwand**, **Umfrage** und **Quiz**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Karte „Datei-Pinnwand“ verlinkt in einem neuen Tab auf die separate Pinnwand-App https://pinnwand-bn.vercel.app/ (Fotos und PDFs per QR-Code hochladen). `/b/...` und `/api/boards/...` sind reserviert.
 
 ## Hosting und eigene Bereitstellung
 
