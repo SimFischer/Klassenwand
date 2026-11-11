@@ -343,4 +343,39 @@ describe("API mit echter PostgreSQL-Engine (PGlite)", () => {
       await drizzle(pg).select().from(activities).where(eq(activities.id, id)),
     ).toHaveLength(0);
   });
+  it("erstellt eine Umfrage, nimmt Stimmen an und wertet sie aus", async () => {
+    const response = await create(
+      req("/api/activities", "POST", {
+        kind: "u",
+        title: "Wandertag?",
+        options: ["Zoo", "Museum"],
+        chart: "pie",
+        participantId: participant,
+      }),
+    );
+    expect(response.status).toBe(201);
+    const { id, key, hostUrl } = await response.json();
+    expect(hostUrl).toMatch(/^\/u\//);
+    const ctx = { params: Promise.resolve({ id }) },
+      api = handlers("u");
+    let data = await (await api.GET(req("/api/u/" + id), ctx)).json();
+    expect(data.data.options).toHaveLength(2);
+    expect(data.data.chart).toBe("pie");
+    expect(data.data.results).toEqual([]);
+    const option = data.data.options[1].id;
+    const vote = await api.POST(
+      req("/api/u/" + id, "POST", { action: "vote", options: [option] }),
+      ctx,
+    );
+    expect(vote.status).toBe(200);
+    data = await (
+      await api.GET(req("/api/u/" + id, "GET", undefined, key), ctx)
+    ).json();
+    expect(data.data.total).toBe(1);
+    expect(data.data.results[1].count).toBe(1);
+    expect(data.data).not.toHaveProperty("ballots");
+    expect((await handlers("w").GET(req("/api/w/" + id), ctx)).status).toBe(
+      404,
+    );
+  });
 });

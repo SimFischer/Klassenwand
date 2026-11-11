@@ -2,6 +2,7 @@ import { and, eq, gt, lte, sql } from "drizzle-orm";
 import { database } from "./index";
 import { activities, creationLimits } from "./schema";
 import { demand } from "../errors";
+import type { Kind } from "../types";
 export async function createActivity(
   row: typeof activities.$inferInsert,
   participant: string,
@@ -36,7 +37,7 @@ export async function findActivity(id: string, kind: string) {
     .where(
       and(
         eq(activities.id, id),
-        eq(activities.kind, kind as "w" | "t"),
+        eq(activities.kind, kind as Kind),
         gt(activities.expiresAt, new Date()),
       ),
     );
@@ -52,7 +53,7 @@ export async function changeActivity(
     const [row] = await tx
       .select()
       .from(activities)
-      .where(and(eq(activities.id, id), eq(activities.kind, kind as "w" | "t")))
+      .where(and(eq(activities.id, id), eq(activities.kind, kind as Kind)))
       .for("update");
     demand(
       row && row.expiresAt.getTime() > Date.now(),

@@ -9,7 +9,7 @@ import {
   type Saved,
 } from "@/lib/client";
 export default function Home() {
-  const [tool, setTool] = useState<"w" | "t" | null>(null),
+  const [tool, setTool] = useState<"w" | "t" | "u" | null>(null),
     [saved, setSaved] = useState<Saved[]>([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -21,6 +21,12 @@ export default function Home() {
     const form = new FormData(e.currentTarget);
     try {
       const title = String(form.get("title"));
+      const options = String(form.get("options") || "")
+        .split("\n")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      if (tool === "u" && (options.length < 2 || options.length > 10))
+        throw new Error("Bitte gib 2 bis 10 Antwortmöglichkeiten an.");
       const response = await fetch("/api/activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,6 +39,13 @@ export default function Home() {
           columns: String(form.get("columns") || "Erste Gedanken")
             .split("\n")
             .filter((x) => x.trim()),
+          ...(tool === "u"
+            ? {
+                options,
+                multiple: form.get("multiple") === "on",
+                chart: form.get("chart") === "pie" ? "pie" : "bar",
+              }
+            : {}),
         }),
       });
       const result = await response.json();
@@ -125,8 +138,33 @@ export default function Home() {
               Pinnwand erstellen <span>→</span>
             </span>
           </button>
+          <button
+            className="tool-card poll-card"
+            onClick={() => {
+              setTool("u");
+              setError("");
+            }}
+          >
+            <span className="tool-number">03 / MEINUNG ERFASSEN</span>
+            <div className="poll-illustration" aria-hidden="true">
+              <span style={{ height: "78%" }} />
+              <span style={{ height: "46%" }} />
+              <span style={{ height: "92%" }} />
+              <span style={{ height: "30%" }} />
+            </div>
+            <h3>
+              Umfrage <span>↗</span>
+            </h3>
+            <p>
+              Antworten vorgeben, abstimmen lassen und das Ergebnis live als
+              Balken- oder Tortendiagramm zeigen.
+            </p>
+            <span className="card-action">
+              Umfrage erstellen <span>→</span>
+            </span>
+          </button>
           <article className="tool-card soon-card">
-            <span className="tool-number">03 / INHALTE VERBINDEN</span>
+            <span className="tool-number">04 / INHALTE VERBINDEN</span>
             <div className="file-illustration" aria-hidden="true">
               <span>▧</span>
               <span>≡</span>
@@ -154,13 +192,17 @@ export default function Home() {
               <li key={item.link}>
                 <a href={item.link}>
                   <span className="activity-icon">
-                    {item.kind === "w" ? "☁" : "▤"}
+                    {item.kind === "w" ? "☁" : item.kind === "u" ? "▥" : "▤"}
                   </span>
                   <span>
                     <strong>{item.title}</strong>
                     <small>
-                      {item.kind === "w" ? "Wortwolke" : "Text-Pinnwand"} ·{" "}
-                      {new Date(item.date).toLocaleDateString("de-DE")}
+                      {item.kind === "w"
+                        ? "Wortwolke"
+                        : item.kind === "u"
+                          ? "Umfrage"
+                          : "Text-Pinnwand"}{" "}
+                      · {new Date(item.date).toLocaleDateString("de-DE")}
                     </small>
                   </span>
                   <span>Öffnen →</span>
@@ -202,11 +244,15 @@ export default function Home() {
           </button>
           <p className="eyebrow">LOS GEHT’S</p>
           <h2 id="create-title">
-            {tool === "w" ? "Eine Frage für alle." : "Raum für eure Gedanken."}
+            {tool === "w"
+              ? "Eine Frage für alle."
+              : tool === "u"
+                ? "Wofür entscheidet ihr euch?"
+                : "Raum für eure Gedanken."}
           </h2>
           <form onSubmit={create}>
             <label>
-              {tool === "w" ? "Deine Frage" : "Titel der Pinnwand"}
+              {tool === "t" ? "Titel der Pinnwand" : "Deine Frage"}
               <input
                 autoFocus
                 required
@@ -215,11 +261,44 @@ export default function Home() {
                 placeholder={
                   tool === "w"
                     ? "Was macht eine gute Klassengemeinschaft aus?"
-                    : "Unsere Ideen zur Projektwoche"
+                    : tool === "u"
+                      ? "Wohin soll unser Wandertag gehen?"
+                      : "Unsere Ideen zur Projektwoche"
                 }
               />
             </label>
-            {tool === "w" ? (
+            {tool === "u" ? (
+              <>
+                <label>
+                  Antwortmöglichkeiten · eine pro Zeile (2 bis 10)
+                  <textarea
+                    name="options"
+                    required
+                    rows={5}
+                    maxLength={1300}
+                    placeholder={"Zoo\nKletterpark\nMuseum\nWanderung"}
+                  />
+                </label>
+                <div className="form-row">
+                  <label>
+                    Diagramm
+                    <select name="chart" defaultValue="bar">
+                      <option value="bar">Balkendiagramm</option>
+                      <option value="pie">Tortendiagramm</option>
+                    </select>
+                  </label>
+                  <label className="checkbox-inline">
+                    <input type="checkbox" name="multiple" />
+                    Mehrfachauswahl erlauben
+                  </label>
+                </div>
+                <p className="hint">
+                  Das Ergebnis siehst zunächst nur du. Du kannst es jederzeit
+                  für die Klasse freigeben und zwischen Balken und Torte
+                  wechseln.
+                </p>
+              </>
+            ) : tool === "w" ? (
               <div className="form-row">
                 <label>
                   Begriffe pro Person

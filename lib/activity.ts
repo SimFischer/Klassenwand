@@ -3,6 +3,7 @@ import type { Action } from "./validation";
 import { demand } from "./errors";
 import { aggregate, cleanWord, normalizeWord } from "./wordcloud/words";
 import { boardAction } from "./board/actions";
+import { pollAction, tally } from "./poll/votes";
 export function applyAction(
   activity: Activity,
   a: Action,
@@ -42,6 +43,7 @@ export function applyAction(
     if (a.paused !== undefined) d.paused = a.paused;
     if (a.showCloud !== undefined) d.showCloud = a.showCloud;
     if (a.approval !== undefined) d.approval = a.approval;
+    if (a.chart !== undefined) d.chart = a.chart;
     return;
   }
   if (activity.kind === "w") {
@@ -76,6 +78,7 @@ export function applyAction(
     }
     demand(false, 400, "Aktion passt nicht zur Wortwolke.");
   }
+  if (activity.kind === "u") return pollAction(d, a, host, participant);
   boardAction(d, a, host, participant, now);
 }
 export function snapshot(
@@ -83,7 +86,7 @@ export function snapshot(
   host: boolean,
   participant: string,
 ): Snapshot {
-  const { participants, words, posts, ...rest } = activity.data;
+  const { participants, words, posts, ballots, ...rest } = activity.data;
   const visible = posts.filter(
     (p) => host || (!p.hidden && p.approved) || p.participant === participant,
   );
@@ -107,7 +110,14 @@ export function snapshot(
           own: owner === participant,
         })),
       ownCount: participants[participant]?.count ?? 0,
-      total: activity.kind === "w" ? words.length : posts.length,
+      total:
+        activity.kind === "w"
+          ? words.length
+          : activity.kind === "u"
+            ? Object.keys(ballots ?? {}).length
+            : posts.length,
+      results: host || rest.showCloud ? tally(activity.data) : [],
+      ownVotes: ballots?.[participant] ?? [],
     },
   };
 }

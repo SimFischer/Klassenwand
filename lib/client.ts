@@ -1,7 +1,7 @@
 "use client";
 export type Saved = {
   title: string;
-  kind: "w" | "t";
+  kind: "w" | "t" | "u";
   link: string;
   date: number;
 };
@@ -28,7 +28,7 @@ export function savedActivities(): Saved[] {
       ? value.filter(
           (x: Saved) =>
             typeof x.title === "string" &&
-            /^\/(w|t)\/[\w-]+\/host\?key=[\w-]+$/.test(x.link) &&
+            /^\/(w|t|u)\/[\w-]+\/host\?key=[\w-]+$/.test(x.link) &&
             Date.now() - x.date < 7 * 86400000,
         )
       : [];

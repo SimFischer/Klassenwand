@@ -34,6 +34,15 @@ export async function POST(request: Request) {
           posts: [],
           approval: false,
           participants: {},
+          ...(input.kind === "u"
+            ? {
+                showCloud: false,
+                options: input.options.map((text) => ({ id: newId(), text })),
+                multiple: input.multiple,
+                chart: input.chart,
+                ballots: {},
+              }
+            : {}),
         },
       },
       input.participantId,

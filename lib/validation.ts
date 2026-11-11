@@ -1,18 +1,26 @@
 import { z } from "zod";
 const text = z.string().trim().min(1).max(500);
 export const participantSchema = z.string().uuid();
-export const createSchema = z.object({
-  kind: z.enum(["w", "t"]),
-  title: z.string().trim().min(1).max(180),
-  maxWords: z.number().int().min(1).max(20).default(3),
-  maxLength: z.number().int().min(1).max(80).default(30),
-  columns: z
-    .array(z.string().trim().min(1).max(180))
-    .min(1)
-    .max(12)
-    .default(["Erste Gedanken"]),
-  participantId: participantSchema,
-});
+export const createSchema = z
+  .object({
+    kind: z.enum(["w", "t", "u"]),
+    title: z.string().trim().min(1).max(180),
+    maxWords: z.number().int().min(1).max(20).default(3),
+    maxLength: z.number().int().min(1).max(80).default(30),
+    columns: z
+      .array(z.string().trim().min(1).max(180))
+      .min(1)
+      .max(12)
+      .default(["Erste Gedanken"]),
+    options: z.array(z.string().trim().min(1).max(120)).max(10).default([]),
+    multiple: z.boolean().default(false),
+    chart: z.enum(["bar", "pie"]).default("bar"),
+    participantId: participantSchema,
+  })
+  .refine((input) => input.kind !== "u" || input.options.length >= 2, {
+    message: "Bitte gib mindestens zwei Antwortmöglichkeiten an.",
+    path: ["options"],
+  });
 const id = z.string().min(1).max(64);
 export const actionSchema = z.discriminatedUnion("action", [
   z.object({
@@ -29,6 +37,11 @@ export const actionSchema = z.discriminatedUnion("action", [
     paused: z.boolean().optional(),
     showCloud: z.boolean().optional(),
     approval: z.boolean().optional(),
+    chart: z.enum(["bar", "pie"]).optional(),
+  }),
+  z.object({
+    action: z.literal("vote"),
+    options: z.array(id).min(1).max(10),
   }),
   z.object({ action: z.literal("reset") }),
   z.object({

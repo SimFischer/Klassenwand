@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Klassenwand",
   description:
-    "Wortwolken und Text-Pinnwände für deinen Unterricht. Ohne Anmeldung.",
+    "Wortwolken, Text-Pinnwände und Umfragen für deinen Unterricht. Ohne Anmeldung.",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

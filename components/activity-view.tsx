@@ -7,6 +7,9 @@ import { usePolling } from "@/lib/use-polling";
 import { QRPanel } from "./qr-panel";
 import { WordCloud } from "./word-cloud";
 import { TextBoard } from "./text-board";
+import { PollChart } from "./poll-chart";
+import { PollVote } from "./poll-vote";
+const kindLabel = { w: "WORTWOLKE", t: "TEXT-PINNWAND", u: "UMFRAGE" };
 export function ActivityView({
   id,
   kind,
@@ -195,10 +198,28 @@ export function ActivityView({
       </main>
     );
   const d = data.data;
-  if (cloudOnly && data.host && kind === "w") {
+  if (cloudOnly && data.host && kind !== "t") {
     return (
-      <main className="cloud-presentation" aria-label="Wortwolke für die Tafel">
-        <WordCloud words={d.words} />
+      <main
+        className={`cloud-presentation ${kind === "u" ? "poll-presentation" : ""}`}
+        aria-label={
+          kind === "u"
+            ? "Umfrage-Ergebnis für die Tafel"
+            : "Wortwolke für die Tafel"
+        }
+      >
+        {kind === "u" ? (
+          <>
+            <h1>{data.title}</h1>
+            <PollChart
+              results={d.results}
+              chart={d.chart ?? "bar"}
+              voters={d.total}
+            />
+          </>
+        ) : (
+          <WordCloud words={d.words} />
+        )}
         <button
           ref={exitPresentationButton}
           className="presentation-exit"
@@ -221,15 +242,19 @@ export function ActivityView({
       <div className="activity-heading">
         <div>
           <p className="eyebrow">
-            {kind === "w" ? "WORTWOLKE" : "TEXT-PINNWAND"}{" "}
+            {kindLabel[kind]}{" "}
             <span className={`live-dot ${d.paused ? "paused" : ""}`} />
-            {d.paused ? " EINGABE PAUSIERT" : " LIVE"}
+            {d.paused
+              ? kind === "u"
+                ? " ABSTIMMUNG GESCHLOSSEN"
+                : " EINGABE PAUSIERT"
+              : " LIVE"}
             {data.host ? " · LEHRKRAFT-ANSICHT" : ""}
           </p>
           <h1>{data.title}</h1>
         </div>
         <span className="contribution-count">
-          <b>{d.total}</b> Beiträge
+          <b>{d.total}</b> {kind === "u" ? "Teilnehmende" : "Beiträge"}
         </span>
       </div>
       {data.host && (
@@ -241,9 +266,63 @@ export function ActivityView({
             disabled={busy}
             onClick={() => void send({ action: "settings", paused: !d.paused })}
           >
-            {d.paused ? "▶ Eingaben öffnen" : "Ⅱ Eingaben pausieren"}
+            {kind === "u"
+              ? d.paused
+                ? "▶ Abstimmung öffnen"
+                : "Ⅱ Abstimmung schließen"
+              : d.paused
+                ? "▶ Eingaben öffnen"
+                : "Ⅱ Eingaben pausieren"}
           </button>
-          {kind === "w" ? (
+          {kind === "u" ? (
+            <>
+              <button
+                ref={presentationButton}
+                onClick={() => setCloudOnly(true)}
+                aria-label="Nur das Diagramm groß anzeigen"
+              >
+                ⛶ Nur Diagramm
+              </button>
+              <div className="segmented" role="group" aria-label="Diagrammart">
+                {(
+                  [
+                    ["bar", "▤ Balken"],
+                    ["pie", "◔ Torte"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    disabled={busy}
+                    aria-pressed={(d.chart ?? "bar") === value}
+                    onClick={() =>
+                      void send({ action: "settings", chart: value })
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void send({ action: "settings", showCloud: !d.showCloud })
+                }
+              >
+                {d.showCloud
+                  ? "Ergebnis für Schüler verbergen"
+                  : "Ergebnis für Schüler zeigen"}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  if (confirm("Alle Stimmen löschen und neu abstimmen lassen?"))
+                    void send({ action: "reset" });
+                }}
+              >
+                Stimmen zurücksetzen
+              </button>
+            </>
+          ) : kind === "w" ? (
             <>
               <button
                 ref={presentationButton}
@@ -322,7 +401,38 @@ export function ActivityView({
       )}
       <div className={`activity-content ${qr ? "with-qr" : ""}`}>
         <section className="activity-workspace">
-          {kind === "w" ? (
+          {kind === "u" ? (
+            <>
+              {!data.host && (
+                <PollVote
+                  options={d.options ?? []}
+                  multiple={!!d.multiple}
+                  ownVotes={d.ownVotes}
+                  paused={d.paused}
+                  busy={busy}
+                  onVote={async (options) => {
+                    const ok = await send({ action: "vote", options });
+                    if (ok) setMessage("Danke, deine Stimme ist angekommen!");
+                    return ok;
+                  }}
+                />
+              )}
+              {data.host || d.showCloud ? (
+                <PollChart
+                  results={d.results}
+                  chart={d.chart ?? "bar"}
+                  voters={d.total}
+                  ownVotes={data.host ? [] : d.ownVotes}
+                />
+              ) : (
+                d.ownVotes.length > 0 && (
+                  <p className="hint poll-wait">
+                    Die Lehrkraft zeigt das Ergebnis gleich an der Tafel.
+                  </p>
+                )
+              )}
+            </>
+          ) : kind === "w" ? (
             <>
               {!data.host && (
                 <form className="word-form" onSubmit={submitWord}>
