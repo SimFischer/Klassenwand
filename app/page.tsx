@@ -36,7 +36,8 @@ export default function Home() {
         .filter(Boolean);
       if (tool === "u" && (options.length < 2 || options.length > 10))
         throw new Error("Bitte gib 2 bis 10 Antwortmöglichkeiten an.");
-      const quiz = tool === "q" ? quizPayload(questions) : [];
+      const quiz =
+        tool === "q" ? quizPayload(questions) : { questions: [], images: [] };
       const response = await fetch("/api/activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,12 +57,29 @@ export default function Home() {
                 chart: form.get("chart") === "pie" ? "pie" : "bar",
               }
             : {}),
-          ...(tool === "q" ? { questions: quiz } : {}),
+          ...(tool === "q" ? { questions: quiz.questions } : {}),
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       remember({ title, kind: tool!, link: result.hostUrl, date: Date.now() });
+      const failed: number[] = [];
+      for (const [n, image] of quiz.images.entries()) {
+        if (!image) continue;
+        const upload = await fetch(`/api/q/${result.id}/image/${n}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-host-key": result.key,
+          },
+          body: JSON.stringify({ data: image }),
+        }).catch(() => null);
+        if (!upload?.ok) failed.push(n + 1);
+      }
+      if (failed.length)
+        alert(
+          `Das Quiz wurde erstellt, aber das Bild zu Frage ${failed.join(", ")} konnte nicht hochgeladen werden.`,
+        );
       window.location.assign(result.hostUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erstellen fehlgeschlagen.");

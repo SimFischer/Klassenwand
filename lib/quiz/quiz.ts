@@ -8,6 +8,7 @@ const FULL_POINTS_MS = 2000;
 /** Toleranz für Netzwerklaufzeit nach Ablauf des Countdowns. */
 const GRACE_MS = 1500;
 
+/** Grundpunkte: 1000 bei schneller, 500 bei ganz später richtiger Antwort. */
 export function points(elapsed: number, seconds: number) {
   const limit = seconds * 1000;
   const late = Math.min(
@@ -18,6 +19,11 @@ export function points(elapsed: number, seconds: number) {
     1,
   );
   return Math.round(1000 - 500 * late);
+}
+
+/** Serien-Multiplikator: ab der 2. richtigen Antwort in Folge +0,1, höchstens ×1,5. */
+export function multiplier(streak: number) {
+  return Math.round((1 + Math.min(Math.max(streak - 1, 0), 5) * 0.1) * 10) / 10;
 }
 
 export function cleanName(name: string) {
@@ -68,8 +74,19 @@ export function quizAction(
       "Die Zeit ist leider abgelaufen.",
     );
     const correct = a.choice === question.correct;
-    const earned = correct ? points(elapsed, question.seconds) : 0;
-    player.answers[question.id] = { choice: a.choice, correct, points: earned };
+    const previous = q.questions[q.current - 1];
+    const before = previous ? player.answers[previous.id] : undefined;
+    const streak = correct ? (before?.correct ? before.streak : 0) + 1 : 0;
+    const earned = correct
+      ? Math.round(points(elapsed, question.seconds) * multiplier(streak))
+      : 0;
+    player.answers[question.id] = {
+      choice: a.choice,
+      correct,
+      points: earned,
+      ms: elapsed,
+      streak,
+    };
     player.score += earned;
     return;
   }
@@ -109,6 +126,11 @@ export function quizAction(
   demand(false, 400, "Aktion passt nicht zum Quiz.");
 }
 
+/** Frage, deren Ergebnis schon feststeht (während einer laufenden Frage: die vorige). */
+function settledQuestion(q: QuizState) {
+  return q.questions[q.phase === "question" ? q.current - 1 : q.current];
+}
+
 /**
  * Punktestand ohne die laufende Frage – sonst verriete eine Punktänderung vor der
  * Auflösung, ob die Antwort richtig war.
@@ -120,9 +142,20 @@ function settledScore(q: QuizState, p: QuizPlayer) {
     : p.score;
 }
 
+function settledStreak(q: QuizState, p: QuizPlayer) {
+  const question = settledQuestion(q);
+  const answer = question ? p.answers[question.id] : undefined;
+  return answer?.correct ? answer.streak : 0;
+}
+
 function ranking(q: QuizState) {
   return Object.values(q.players)
-    .map((p) => ({ ...p, score: settledScore(q, p) }))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      score: settledScore(q, p),
+      streak: settledStreak(q, p),
+    }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, "de"));
 }
 
@@ -131,6 +164,7 @@ export function quizView(
   q: QuizState,
   host: boolean,
   participant: string,
+  activityId: string,
   now = Date.now(),
 ): QuizView {
   const question = q.questions[q.current];
@@ -139,6 +173,16 @@ export function quizView(
   const ranked = ranking(q);
   const me = q.players[participant];
   const own = me && question ? me.answers[question.id] : undefined;
+  const rank = me ? ranked.findIndex((p) => p.id === me.id) : -1;
+  const ahead = rank > 0 ? ranked[rank - 1] : undefined;
+  const fastest =
+    revealed && question
+      ? players
+          .filter((p) => p.answers[question.id]?.correct)
+          .sort(
+            (a, b) => a.answers[question.id].ms - b.answers[question.id].ms,
+          )[0]
+      : undefined;
   return {
     phase: q.phase,
     current: q.current,
@@ -151,6 +195,10 @@ export function quizView(
             options: question.options,
             seconds: question.seconds,
             correct: revealed ? question.correct : undefined,
+            kind: question.kind,
+            image: question.image
+              ? `/api/q/${activityId}/image/${q.current}`
+              : undefined,
           },
     remainingMs:
       q.phase === "question" && question
@@ -168,22 +216,32 @@ export function quizView(
                 .length,
           )
         : undefined,
+    fastest:
+      fastest && question
+        ? { name: fastest.name, ms: fastest.answers[question.id].ms }
+        : undefined,
     leaderboard:
       revealed || host
-        ? ranked
-            .slice(0, host && q.phase === "lobby" ? 500 : 10)
-            .map(({ id, name, score }) => ({ id, name, score }))
+        ? ranked.slice(0, host && q.phase === "lobby" ? 500 : 10)
         : [],
     me: me
       ? {
           name: me.name,
           score: settledScore(q, me),
-          rank: ranked.findIndex((p) => p.id === me.id) + 1,
+          rank: rank + 1,
+          streak: settledStreak(q, me),
+          behind:
+            revealed && ahead
+              ? { name: ahead.name, points: ahead.score - ranked[rank].score }
+              : undefined,
           answer: own
             ? {
                 choice: own.choice,
                 correct: revealed ? own.correct : undefined,
                 points: revealed ? own.points : undefined,
+                multiplier:
+                  revealed && own.correct ? multiplier(own.streak) : undefined,
+                ms: revealed ? own.ms : undefined,
               }
             : undefined,
         }

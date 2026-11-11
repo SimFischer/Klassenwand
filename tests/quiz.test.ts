@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyAction, snapshot } from "../lib/activity";
-import { points } from "../lib/quiz/quiz";
+import { multiplier, points } from "../lib/quiz/quiz";
+import { parseImage } from "../lib/quiz/image";
 import { createSchema } from "../lib/validation";
 import { fixture } from "./fixtures";
 
@@ -148,5 +149,126 @@ describe("Quiz", () => {
         questions: [{ text: "?", options: ["a", "b"], correct: 1 }],
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("Quiz: Serien, Schnellste und Wahr/Falsch", () => {
+  it("erhöht den Multiplikator bei Serien und setzt ihn bei Fehlern zurück", () => {
+    expect([1, 2, 3, 6, 9].map(multiplier)).toEqual([1, 1.1, 1.2, 1.5, 1.5]);
+    const a = quiz();
+    a.data.quiz!.questions.push(
+      {
+        id: "q3",
+        text: "Wahr?",
+        options: ["Wahr", "Falsch"],
+        correct: 0,
+        seconds: 10,
+        kind: "tf",
+      },
+      { id: "q4", text: "1+1?", options: ["2", "3"], correct: 0, seconds: 10 },
+    );
+    applyAction(a, { action: "join", name: "A" }, false, "p1", t0);
+    applyAction(a, { action: "join", name: "B" }, false, "p2", t0);
+    const play = (answers: [string, number, number][]) => {
+      for (const [p, choice, ms] of answers)
+        applyAction(
+          a,
+          { action: "answer", choice },
+          false,
+          p,
+          a.data.quiz!.startedAt + ms,
+        );
+      applyAction(a, { action: "quiz", step: "reveal" }, true, "host", t0);
+    };
+    applyAction(a, { action: "quiz", step: "start" }, true, "host", t0);
+    play([
+      ["p1", 1, 500],
+      ["p2", 1, 1500],
+    ]);
+    let view = snapshot(a, true, "host").data.quiz!;
+    expect(view.fastest).toEqual({ name: "A", ms: 500 });
+    applyAction(
+      a,
+      { action: "quiz", step: "next" },
+      true,
+      "host",
+      t0 + 100_000,
+    );
+    play([
+      ["p1", 0, 100],
+      ["p2", 1, 100],
+    ]);
+    let me = snapshot(a, false, "p1").data.quiz!.me!;
+    expect(me.answer).toMatchObject({ points: 1100, multiplier: 1.1 });
+    expect(me.streak).toBe(2);
+    expect(snapshot(a, false, "p2").data.quiz!.me).toMatchObject({
+      streak: 0,
+      rank: 2,
+      behind: { name: "A", points: 1100 },
+    });
+    applyAction(
+      a,
+      { action: "quiz", step: "next" },
+      true,
+      "host",
+      t0 + 200_000,
+    );
+    // Während der Frage bleiben Serie und Punkte der laufenden Antwort verborgen.
+    applyAction(a, { action: "answer", choice: 0 }, false, "p1", t0 + 200_100);
+    view = snapshot(a, false, "p1").data.quiz!;
+    expect(view.me).toMatchObject({ score: 2100, streak: 2 });
+    expect(view.question?.kind).toBe("tf");
+    applyAction(a, { action: "quiz", step: "reveal" }, true, "host", t0);
+    expect(snapshot(a, false, "p1").data.quiz!.me).toMatchObject({
+      score: 3300,
+      streak: 3,
+    });
+    applyAction(
+      a,
+      { action: "quiz", step: "next" },
+      true,
+      "host",
+      t0 + 300_000,
+    );
+    play([["p1", 1, 100]]);
+    expect(snapshot(a, false, "p1").data.quiz!.me).toMatchObject({
+      score: 3300,
+      streak: 0,
+    });
+  });
+  it("prüft Wahr/Falsch-Fragen beim Erstellen", () => {
+    const base = {
+      kind: "q",
+      title: "Quiz",
+      participantId: "46e9029c-b268-44b5-b0f4-123456789abc",
+    };
+    expect(
+      createSchema.safeParse({
+        ...base,
+        questions: [
+          { text: "?", options: ["Wahr", "Falsch"], correct: 1, kind: "tf" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      createSchema.safeParse({
+        ...base,
+        questions: [
+          { text: "?", options: ["a", "b", "c"], correct: 1, kind: "tf" },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+  it("akzeptiert nur echte Rasterbilder", () => {
+    const png = Buffer.from("89504e470d0a1a0a0000", "hex").toString("base64");
+    expect(parseImage({ data: `data:image/png;base64,${png}` }).mime).toBe(
+      "image/png",
+    );
+    expect(() => parseImage({ data: `data:image/jpeg;base64,${png}` })).toThrow(
+      "kein gültiges Bild",
+    );
+    expect(() =>
+      parseImage({ data: "data:image/svg+xml;base64,PHN2Zz4=" }),
+    ).toThrow();
   });
 });

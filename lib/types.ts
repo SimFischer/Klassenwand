@@ -48,6 +48,19 @@ export type QuizQuestion = {
   options: string[];
   correct: number;
   seconds: number;
+  /** "tf": Wahr/Falsch-Frage mit genau zwei Antworten. */
+  kind?: "tf";
+  /** Zur Frage wurde ein Bild hochgeladen (liegt in quiz_images). */
+  image?: boolean;
+};
+export type QuizAnswer = {
+  choice: number;
+  correct: boolean;
+  points: number;
+  /** Antwortzeit seit Fragenstart in Millisekunden. */
+  ms: number;
+  /** Richtige Antworten in Folge einschließlich dieser. */
+  streak: number;
 };
 export type QuizPhase = "lobby" | "question" | "reveal" | "finished";
 export type QuizPlayer = {
@@ -55,7 +68,7 @@ export type QuizPlayer = {
   id: string;
   name: string;
   score: number;
-  answers: Record<string, { choice: number; correct: boolean; points: number }>;
+  answers: Record<string, QuizAnswer>;
 };
 export type QuizState = {
   questions: QuizQuestion[];
@@ -73,17 +86,31 @@ export type QuizView = {
     options: string[];
     seconds: number;
     correct?: number;
+    kind?: "tf";
+    /** Adresse des Bildes, falls vorhanden. */
+    image?: string;
   };
   remainingMs: number;
   answered: number;
   players: number;
   distribution?: number[];
-  leaderboard: { id: string; name: string; score: number }[];
+  /** Nach der Auflösung: schnellste richtige Antwort. */
+  fastest?: { name: string; ms: number };
+  leaderboard: { id: string; name: string; score: number; streak: number }[];
   me?: {
     name: string;
     score: number;
     rank: number;
-    answer?: { choice: number; correct?: boolean; points?: number };
+    streak: number;
+    /** Abstand zum Platz davor, nach der Auflösung. */
+    behind?: { name: string; points: number };
+    answer?: {
+      choice: number;
+      correct?: boolean;
+      points?: number;
+      multiplier?: number;
+      ms?: number;
+    };
   };
 };
 export type Activity = {

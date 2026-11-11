@@ -2254,3 +2254,102 @@ button.quiz-tile:active {
   flex: none;
   width: 44px;
 }
+
+/* Quiz: Bilder, Wahr/Falsch, Serien */
+.quiz-image {
+  display: block;
+  max-width: min(100%, 900px);
+  max-height: 32vh;
+  margin: 0 auto 22px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #fff;
+}
+.quiz-image.small {
+  max-height: 20vh;
+  margin-bottom: 14px;
+}
+.quiz-presentation .quiz-image {
+  max-height: 40vh;
+}
+.quiz-type {
+  display: inline-flex;
+  margin: 2px 0 8px;
+}
+.quiz-type button {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 0;
+}
+.quiz-type button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.quiz-type button:last-child {
+  border-radius: 0 8px 8px 0;
+  margin-left: -1px;
+}
+.quiz-type button[aria-pressed="true"] {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.quiz-editor-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.quiz-editor-image img {
+  max-height: 90px;
+  max-width: 160px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+form label.image-pick {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px dashed #b9c3ad;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #fafbf7;
+}
+.image-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.image-pick:focus-within {
+  outline: 3px solid #ac651d;
+  outline-offset: 2px;
+}
+.tf-label {
+  font-weight: 700;
+  padding: 7px 2px;
+}
+.quiz-tiles.tf .quiz-tile {
+  min-height: 120px;
+  font-size: clamp(20px, 2.4vw, 34px);
+}
+.quiz-fastest {
+  margin-top: 22px;
+  font-size: 18px;
+}
+.quiz-leaderboard .streak {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b5473a;
+  white-space: nowrap;
+}
+.quiz-bonus {
+  font-size: 15px;
+  opacity: 0.9;
+}
+.quiz-position {
+  margin-top: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}

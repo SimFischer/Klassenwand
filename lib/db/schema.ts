@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import type { ActivityData, Kind } from "../types";
 export const activities = pgTable(
@@ -28,3 +29,16 @@ export const creationLimits = pgTable("creation_limits", {
   count: integer("count").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+/** Quiz-Bilder getrennt vom Aktivitätszustand, damit das Live-Polling klein bleibt. */
+export const quizImages = pgTable(
+  "quiz_images",
+  {
+    activityId: text("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    question: integer("question").notNull(),
+    mime: text("mime").notNull(),
+    data: text("data").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.activityId, t.question] })],
+);

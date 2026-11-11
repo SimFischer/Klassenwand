@@ -25,7 +25,7 @@ export async function safe(run: () => Promise<Response>) {
     );
   }
 }
-export async function body(request: Request) {
+export async function body(request: Request, limit = 16384) {
   demand(
     request.headers.get("content-type")?.includes("application/json"),
     415,
@@ -40,7 +40,7 @@ export async function body(request: Request) {
       const part = await reader.read();
       if (part.done) break;
       size += part.value.length;
-      demand(size <= 16384, 413, "Die Eingabe ist zu groß.");
+      demand(size <= limit, 413, "Die Eingabe ist zu groß.");
       chunks.push(part.value);
     }
   } finally {

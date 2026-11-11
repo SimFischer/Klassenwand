@@ -139,7 +139,7 @@ export function snapshot(
             : activity.kind === "q"
               ? Object.keys(quiz?.players ?? {}).length
               : posts.length,
-      quiz: quiz ? quizView(quiz, host, participant) : undefined,
+      quiz: quiz ? quizView(quiz, host, participant, activity.id) : undefined,
       results: host || rest.showCloud ? tally(activity.data) : [],
       firstRound: host || rest.showCloud ? rest.firstRound : undefined,
       ownVotes: ballots?.[participant] ?? [],

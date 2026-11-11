@@ -7,7 +7,11 @@ vi.mock("../lib/db/index", () => ({ database: () => state.db }));
 import { POST as create } from "../app/api/activities/route";
 import { handlers } from "../lib/routes";
 import { POST as cleanupRoute } from "../app/api/cron/cleanup/route";
-import { activities } from "../lib/db/schema";
+import { activities, quizImages } from "../lib/db/schema";
+import {
+  GET as getImage,
+  PUT as putImage,
+} from "../app/api/q/[id]/image/[question]/route";
 import { eq } from "drizzle-orm";
 import type { Action } from "../lib/validation";
 let pg: PGlite;
@@ -377,5 +381,76 @@ describe("API mit echter PostgreSQL-Engine (PGlite)", () => {
     expect((await handlers("w").GET(req("/api/w/" + id), ctx)).status).toBe(
       404,
     );
+  });
+});
+
+describe("Quiz-Bilder", () => {
+  it("lädt ein Bild hoch und gibt es erst frei, wenn die Frage dran ist", async () => {
+    const response = await create(
+      req("/api/activities", "POST", {
+        kind: "q",
+        title: "Bilderquiz",
+        questions: [
+          { text: "Was ist das?", options: ["Hund", "Katze"], correct: 0 },
+          {
+            text: "Und das?",
+            options: ["Wahr", "Falsch"],
+            correct: 1,
+            kind: "tf",
+          },
+        ],
+        participantId: participant,
+      }),
+    );
+    expect(response.status).toBe(201);
+    const { id, key } = await response.json();
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString(
+      "base64",
+    );
+    const image = (
+      n: number,
+      k?: string,
+      data = `data:image/jpeg;base64,${jpeg}`,
+    ) =>
+      putImage(req(`/api/q/${id}/image/${n}`, "PUT", { data }, k), {
+        params: Promise.resolve({ id, question: String(n) }),
+      });
+    const get = (n: number) =>
+      getImage(req(`/api/q/${id}/image/${n}`), {
+        params: Promise.resolve({ id, question: String(n) }),
+      });
+    expect((await image(0)).status).toBe(403);
+    expect((await image(0, "falsch")).status).toBe(403);
+    expect((await image(5, key)).status).toBe(404);
+    expect(
+      (await image(0, key, "data:image/svg+xml;base64,PHN2Zz4=")).status,
+    ).toBe(400);
+    expect((await image(0, key)).status).toBe(200);
+    expect((await get(0)).status).toBe(404); // Quiz noch in der Lobby
+    const ctx = { params: Promise.resolve({ id }) },
+      api = handlers("q");
+    await api.POST(
+      req(`/api/q/${id}`, "POST", { action: "quiz", step: "start" }, key),
+      ctx,
+    );
+    const shown = await get(0);
+    expect(shown.status).toBe(200);
+    expect(shown.headers.get("content-type")).toBe("image/jpeg");
+    expect(Buffer.from(await shown.arrayBuffer())[0]).toBe(0xff);
+    const view = (await (await api.GET(req(`/api/q/${id}`), ctx)).json()).data
+      .quiz;
+    expect(view.question.image).toBe(`/api/q/${id}/image/0`);
+    await api.POST(
+      req(`/api/q/${id}`, "POST", { action: "quiz", step: "reveal" }, key),
+      ctx,
+    );
+    // Löschen der Aktivität entfernt auch die Bilder.
+    await api.DELETE(req(`/api/q/${id}`, "DELETE", undefined, key), ctx);
+    expect(
+      await drizzle(pg)
+        .select()
+        .from(quizImages)
+        .where(eq(quizImages.activityId, id)),
+    ).toHaveLength(0);
   });
 });

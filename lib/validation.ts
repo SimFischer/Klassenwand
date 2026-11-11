@@ -23,9 +23,13 @@ export const createSchema = z
             options: z.array(z.string().trim().min(1).max(80)).min(2).max(4),
             correct: z.number().int().min(0).max(3),
             seconds: z.number().int().min(5).max(120).default(20),
+            kind: z.literal("tf").optional(),
           })
           .refine((q) => q.correct < q.options.length, {
             message: "Bitte markiere die richtige Antwort.",
+          })
+          .refine((q) => q.kind !== "tf" || q.options.length === 2, {
+            message: "Wahr/Falsch-Fragen haben genau zwei Antworten.",
           }),
       )
       .max(30)

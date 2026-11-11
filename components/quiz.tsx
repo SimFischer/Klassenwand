@@ -8,6 +8,24 @@ export const tileLetters = ["A", "B", "C", "D"];
 
 type Send = (action: Action) => Promise<boolean>;
 
+/** Kennzeichen einer Kachel: A–D oder ✓/✗ bei Wahr/Falsch. */
+export const mark = (q: { kind?: "tf" }, i: number) =>
+  q.kind === "tf" ? (i === 0 ? "✓" : "✗") : tileLetters[i];
+const seconds = (ms: number) =>
+  (ms / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+
+function QuestionImage({ src, small }: { src?: string; small?: boolean }) {
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className={`quiz-image ${small ? "small" : ""}`}
+      src={src}
+      alt="Bild zur Frage"
+    />
+  );
+}
+
 /** Restzeit der laufenden Frage; startet bei jedem neuen Server-Stand neu. */
 function useCountdown(quiz: QuizView) {
   // Das Ende wird je Server-Stand festgehalten. Ein veralteter „now“-Wert ergibt
@@ -60,6 +78,14 @@ function Leaderboard({
         <li key={p.id} className={p.name === highlight ? "me" : ""}>
           <span className="rank">{offset + i + 1}</span>
           <span className="name">{p.name}</span>
+          {p.streak >= 2 && (
+            <span
+              className="streak"
+              title={`${p.streak} richtige Antworten in Folge`}
+            >
+              🔥 {p.streak}
+            </span>
+          )}
           <b>{p.score}</b>
         </li>
       ))}
@@ -163,8 +189,9 @@ export function QuizHost({
         </span>
       </div>
       <h2 className="quiz-question">{q.text}</h2>
+      <QuestionImage src={q.image} small={revealed} />
       {!revealed && <Countdown ms={left} seconds={q.seconds} />}
-      <div className="quiz-tiles host">
+      <div className={`quiz-tiles host ${q.kind ?? ""}`}>
         {q.options.map((option, i) => {
           const isCorrect = revealed && q.correct === i;
           const count = quiz.distribution?.[i] ?? 0;
@@ -174,7 +201,7 @@ export function QuizHost({
               className={`quiz-tile ${revealed ? (isCorrect ? "correct" : "wrong") : ""}`}
               style={{ background: tileColors[i] }}
             >
-              <span className="letter">{tileLetters[i]}</span>
+              <span className="letter">{mark(q, i)}</span>
               <span className="text">{option}</span>
               {revealed && (
                 <span className="tile-count">
@@ -209,6 +236,12 @@ export function QuizHost({
       </div>
       {revealed && (
         <>
+          {quiz.fastest && (
+            <p className="quiz-fastest">
+              ⚡ Am schnellsten richtig: <b>{quiz.fastest.name}</b> in{" "}
+              {seconds(quiz.fastest.ms)} s
+            </p>
+          )}
           <h3 className="quiz-subtitle">Zwischenstand</h3>
           <Leaderboard entries={quiz.leaderboard.slice(0, 5)} />
         </>
@@ -294,8 +327,8 @@ export function QuizPlayer({
   const status = (
     <p className="quiz-me">
       <b>{me.name}</b> · {me.score} Punkte
-      {(quiz.phase === "reveal" || quiz.phase === "finished") &&
-        ` · Platz ${me.rank} von ${quiz.players}`}
+      {me.streak >= 2 && ` · 🔥 ${me.streak}er-Serie`}
+      {quiz.phase === "finished" && ` · Platz ${me.rank} von ${quiz.players}`}
     </p>
   );
   if (quiz.phase === "lobby")
@@ -334,12 +367,29 @@ export function QuizPlayer({
               ? "Richtig! ✓"
               : "Leider falsch"}
         </h2>
-        {answer?.correct && <p className="quiz-points">+{answer.points}</p>}
+        {answer?.correct && (
+          <>
+            <p className="quiz-points">+{answer.points}</p>
+            <p className="quiz-bonus">
+              in {seconds(answer.ms ?? 0)} s
+              {(answer.multiplier ?? 1) > 1 &&
+                ` · 🔥 ${me.streak}er-Serie: ×${answer.multiplier?.toLocaleString("de-DE")}`}
+            </p>
+          </>
+        )}
         {!answer?.correct && q.correct !== undefined && (
           <p>
-            Richtig war {tileLetters[q.correct]}: {q.options[q.correct]}
+            Richtig war {q.kind === "tf" ? "" : `${tileLetters[q.correct]}: `}
+            {q.options[q.correct]}
           </p>
         )}
+        <p className="quiz-position">
+          {me.rank === 1
+            ? "🏆 Du führst!"
+            : me.behind
+              ? `Platz ${me.rank} · ${me.behind.points} Punkte hinter ${me.behind.name}`
+              : `Platz ${me.rank}`}
+        </p>
         {status}
       </div>
     );
@@ -354,13 +404,14 @@ export function QuizPlayer({
         <span className="quiz-play-time">{Math.ceil(left / 1000)} s</span>
       </div>
       <h2 className="quiz-question small">{q.text}</h2>
+      <QuestionImage src={q.image} small />
       {chosen !== null && chosen !== undefined ? (
         <div className="quiz-wait">
           <div
             className="quiz-tile chosen"
             style={{ background: tileColors[chosen] }}
           >
-            <span className="letter">{tileLetters[chosen]}</span>
+            <span className="letter">{mark(q, chosen)}</span>
             <span className="text">{q.options[chosen]}</span>
           </div>
           <p>Antwort gespeichert. Warte auf die Auflösung …</p>
@@ -370,7 +421,7 @@ export function QuizPlayer({
           <h2>Zeit abgelaufen</h2>
         </div>
       ) : (
-        <div className="quiz-tiles">
+        <div className={`quiz-tiles ${q.kind ?? ""}`}>
           {q.options.map((option, i) => (
             <button
               key={i}
@@ -383,7 +434,7 @@ export function QuizPlayer({
                   setPicked(null);
               }}
             >
-              <span className="letter">{tileLetters[i]}</span>
+              <span className="letter">{mark(q, i)}</span>
               <span className="text">{option}</span>
             </button>
           ))}
