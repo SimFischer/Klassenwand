@@ -1,5 +1,5 @@
 import type { Activity } from "../lib/types";
-export function fixture(kind: "w" | "t" | "u" = "w"): Activity {
+export function fixture(kind: "w" | "t" | "u" | "q" = "w"): Activity {
   return {
     id: "test",
     kind,

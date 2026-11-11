@@ -8,6 +8,7 @@ export function PollVote({
   multiple,
   ownVotes,
   paused,
+  round,
   busy,
   onVote,
 }: {
@@ -15,6 +16,7 @@ export function PollVote({
   multiple: boolean;
   ownVotes: string[];
   paused: boolean;
+  round: number;
   busy: boolean;
   onVote: (options: string[]) => Promise<boolean>;
 }) {
@@ -43,6 +45,7 @@ export function PollVote({
     <form className="poll-form" onSubmit={submit}>
       <fieldset disabled={busy || paused}>
         <legend>
+          {round === 2 && <span className="round-badge">Runde 2</span>}
           {multiple
             ? "Wähle eine oder mehrere Antworten"
             : "Wähle eine Antwort"}
@@ -79,7 +82,9 @@ export function PollVote({
           ? "Die Abstimmung ist gerade geschlossen."
           : voted
             ? "Deine Stimme ist angekommen. Solange die Abstimmung offen ist, kannst du sie noch ändern."
-            : "Du kannst einmal abstimmen."}
+            : round === 2
+              ? "Zweite Runde: Stimme nach eurer Diskussion noch einmal ab."
+              : "Du kannst einmal abstimmen."}
       </p>
     </form>
   );

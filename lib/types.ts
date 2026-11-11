@@ -1,4 +1,4 @@
-export type Kind = "w" | "t" | "u";
+export type Kind = "w" | "t" | "u" | "q";
 export type Word = { text: string; normalized: string; participant: string };
 export type Column = { id: string; title: string; closed: boolean };
 export type Post = {
@@ -34,6 +34,57 @@ export type ActivityData = {
   multiple?: boolean;
   chart?: ChartType;
   ballots?: Record<string, string[]>;
+  /** Umfrage: aktuelle Runde und Summen der ersten Runde für den Vergleich. */
+  round?: number;
+  firstRound?: { voters: number; counts: Record<string, number> };
+  /** Wortwolke: zusammengefasste Begriffe, normalisiert → Hauptbegriff. */
+  merges?: Record<string, string>;
+  /** Quiz: Fragen, Spielphase und Spitznamen mit Punkten. */
+  quiz?: QuizState;
+};
+export type QuizQuestion = {
+  id: string;
+  text: string;
+  options: string[];
+  correct: number;
+  seconds: number;
+};
+export type QuizPhase = "lobby" | "question" | "reveal" | "finished";
+export type QuizPlayer = {
+  /** Zufällige öffentliche Kennung, unabhängig von der Gerätekennung. */
+  id: string;
+  name: string;
+  score: number;
+  answers: Record<string, { choice: number; correct: boolean; points: number }>;
+};
+export type QuizState = {
+  questions: QuizQuestion[];
+  phase: QuizPhase;
+  current: number;
+  startedAt: number;
+  players: Record<string, QuizPlayer>;
+};
+export type QuizView = {
+  phase: QuizPhase;
+  current: number;
+  count: number;
+  question?: {
+    text: string;
+    options: string[];
+    seconds: number;
+    correct?: number;
+  };
+  remainingMs: number;
+  answered: number;
+  players: number;
+  distribution?: number[];
+  leaderboard: { id: string; name: string; score: number }[];
+  me?: {
+    name: string;
+    score: number;
+    rank: number;
+    answer?: { choice: number; correct?: boolean; points?: number };
+  };
 };
 export type Activity = {
   id: string;
@@ -45,10 +96,13 @@ export type Activity = {
   data: ActivityData;
 };
 export type PublicPost = Omit<Post, "participant"> & { own: boolean };
-export type PollResult = PollOption & { count: number };
+export type PollResult = PollOption & { count: number; firstCount?: number };
 export type Snapshot = Omit<Activity, "data"> & {
   host: boolean;
-  data: Omit<ActivityData, "participants" | "words" | "posts" | "ballots"> & {
+  data: Omit<
+    ActivityData,
+    "participants" | "words" | "posts" | "ballots" | "quiz"
+  > & {
     words: { text: string; count: number; normalized: string }[];
     posts: PublicPost[];
     ownCount: number;
@@ -56,5 +110,6 @@ export type Snapshot = Omit<Activity, "data"> & {
     /** Umfrage: Stimmen je Antwort; für Schüler leer, solange die Ergebnisse verborgen sind. */
     results: PollResult[];
     ownVotes: string[];
+    quiz?: QuizView;
   };
 };

@@ -4,7 +4,7 @@
 
 **Für den Unterricht: https://klassenwand.vercel.app/** – Werkzeug auswählen, Aktivität erstellen und den QR-Code zeigen. Kein Konto für Lehrkraft oder Klasse erforderlich.
 
-Eine deutschsprachige Unterrichts-App mit **Wortwolke**, **Text-Pinnwand** und **Umfrage**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Datei-Pinnwand ist ausschließlich eine inaktive „Kommt bald“-Karte. `/b/...` und `/api/boards/...` sind reserviert.
+Eine deutschsprachige Unterrichts-App mit **Wortwolke**, **Text-Pinnwand**, **Umfrage** und **Quiz**. Die Klasse nimmt über einen QR-Code ohne Konto teil. Die Datei-Pinnwand ist ausschließlich eine inaktive „Kommt bald“-Karte. `/b/...` und `/api/boards/...` sind reserviert.
 
 ## Hosting und eigene Bereitstellung
 
@@ -75,8 +75,9 @@ Die initiale SQL-Migration und das Drizzle-Journal sind eingecheckt. In Produkti
 ## Bedienung
 
 - Startseite: Werkzeug wählen, Frage bzw. Titel und Spalten eingeben, Aktivität erstellen. Der geheime Lehrkraft-Link wird lokal in „Deine Aktivitäten“ gemerkt. Er ist eine Zugangsberechtigung: nur den **Teilnahmelink oder QR-Code** weitergeben.
-- Wortwolke: standardmäßig drei Begriffe pro Person, maximal 30 Zeichen. Randzeichen, Leerzeichen und Groß-/Kleinschreibung werden normalisiert. Die häufigste Schreibweise wird angezeigt. Ein Klick oder Enter/Leertaste auf ein Wort blendet es dauerhaft aus. „Ausgeblendete Wörter“ erlaubt Wiederherstellen. Blockierte neue Begriffe erhalten die gleiche Bestätigung wie andere Eingaben und zählen zum persönlichen Limit. Sie werden nicht gespeichert. Beim Zurücksetzen werden Begriffe, Blacklist und persönliche Begriffsbudgets zurückgesetzt; das kurzfristige Rate-Limit bleibt bestehen. PNG-Export enthält die sichtbare Wolke.
-- Umfrage: 2 bis 10 vorgegebene Antworten, wahlweise Einfach- oder Mehrfachauswahl. Jedes Gerät hat genau eine Stimme (bzw. einen Stimmzettel bei Mehrfachauswahl) und kann sie ändern, solange die Abstimmung offen ist. Die Lehrkraft sieht das Ergebnis live als Balken- oder Tortendiagramm, kann jederzeit zwischen beiden wechseln, mit „Nur Diagramm“ groß an der Tafel zeigen, die Abstimmung schließen und die Stimmen zurücksetzen. Für Schüler ist das Ergebnis zunächst verborgen und wird erst über „Ergebnis für Schüler zeigen“ freigegeben. Balken zeigen den Anteil der Personen, die Torte den Anteil aller Stimmen. Zusätzliche Datenbankmigrationen sind nicht nötig; die Umfragedaten liegen im vorhandenen JSONB-Zustand.
+- Wortwolke: standardmäßig drei Begriffe pro Person, maximal 30 Zeichen. Randzeichen, Leerzeichen und Groß-/Kleinschreibung werden normalisiert. Die häufigste Schreibweise wird angezeigt. Ein Klick oder Enter/Leertaste auf ein Wort blendet es dauerhaft aus. „Ausgeblendete Wörter“ erlaubt Wiederherstellen. Blockierte neue Begriffe erhalten die gleiche Bestätigung wie andere Eingaben und zählen zum persönlichen Limit. Sie werden nicht gespeichert. Beim Zurücksetzen werden Begriffe, Blacklist und persönliche Begriffsbudgets zurückgesetzt; das kurzfristige Rate-Limit bleibt bestehen. PNG-Export enthält die sichtbare Wolke. Unter „Wörter zusammenfassen“ hakt die Lehrkraft ähnliche Begriffe an (z. B. „Freunde“, „Freund“, „Freundschaft“); sie zählen dann als ein Wort, angezeigt wird der häufigste. Gruppen lassen sich wieder trennen; Zurücksetzen löscht sie.
+- Umfrage: 2 bis 10 vorgegebene Antworten, wahlweise Einfach- oder Mehrfachauswahl. Jedes Gerät hat genau eine Stimme (bzw. einen Stimmzettel bei Mehrfachauswahl) und kann sie ändern, solange die Abstimmung offen ist. Die Lehrkraft sieht das Ergebnis live als Balken- oder Tortendiagramm, kann jederzeit zwischen beiden wechseln, mit „Nur Diagramm“ groß an der Tafel zeigen, die Abstimmung schließen und die Stimmen zurücksetzen. Für Schüler ist das Ergebnis zunächst verborgen und wird erst über „Ergebnis für Schüler zeigen“ freigegeben. Balken zeigen den Anteil der Personen, die Torte den Anteil aller Stimmen. „Zweite Runde starten“ sichert das Ergebnis der ersten Runde (nur Summen, keine Zuordnung zu Geräten), alle stimmen erneut ab, und das Diagramm zeigt beide Runden im Vergleich (Balken: Anteile mit Veränderung in Prozentpunkten, Torte: zwei Diagramme nebeneinander). Zusätzliche Datenbankmigrationen sind nicht nötig; die Umfragedaten liegen im vorhandenen JSONB-Zustand.
+- Quiz: 1 bis 30 Fragen mit 2 bis 4 Antworten (A–D), einer richtigen Antwort und 10 bis 90 Sekunden Zeit. Schüler treten mit einem selbst gewählten Spitznamen bei (Hinweis: keinen echten Namen verwenden; Zufallsnamen möglich), es gibt kein Konto. Die Lehrkraft startet das Quiz, die Handys zeigen farbige Antwortkacheln. Die Frage wird automatisch aufgelöst, wenn die Zeit abläuft oder alle geantwortet haben. Richtige Antworten bringen 500 bis 1.000 Punkte je nach Schnelligkeit (die ersten zwei Sekunden zählen wegen der Abfrageverzögerung voll). Nach jeder Frage: Verteilung, Lösung und Top 5; am Ende Siegertreppchen. Unpassende Spitznamen kann die Lehrkraft entfernen. Spitznamen und Punkte liegen nur im Aktivitätsdatensatz und werden mit ihm gelöscht; andere sehen nie Gerätekennungen.
 - Pinnwand: Spalten bearbeiten, schließen, umsortieren oder löschen. Beiträge mit optionalem Kürzel, Antworten und Querverweisen verfassen. Antworten auf Antworten werden in einer Ebene mit Bezugsangabe geführt. Eigene Texte können zehn Minuten lang geändert oder gelöscht werden. Ein gelöschter Hauptbeitrag entfernt auch seine Antworten. Gelöschte Bezüge zeigen einen neutralen Hinweis.
 - Moderation: Beiträge und Antworten ein- oder ausblenden, freigeben oder löschen. Im Freigabe-Modus bleiben neue Beiträge und spätere Schüleränderungen bis zur Freigabe für andere unsichtbar. Eigene wartende Beiträge sind für das jeweilige Gerät sichtbar. Ausgeblendete Beiträge bleiben für die Lehrkraft blass sichtbar. Hauptbeiträge lassen sich per Drag & Drop oder über „Verschieben“ samt Antworten in andere Spalten und vor andere Beiträge verschieben.
 - Export: „Drucken / PDF“ verwendet ein eigenes Print-Stylesheet. In der Lehrkraft-Ansicht enthält der Druck alle Spalten, Beiträge und Antworten, einschließlich als ausgeblendet oder wartend markierter Inhalte. Im Browser „Als PDF speichern“ wählen. Vollbild und QR-Anzeige stehen in beiden Host-Ansichten bereit.
@@ -138,14 +139,15 @@ Eine GitHub-Actions-Vorlage liegt unter `ci/github-actions.yml`. Zur Aktivierung
 ## Struktur
 
 ```text
-app/w, app/t, app/u   Schüler- und Lehrkraftseiten (Wortwolke, Pinnwand, Umfrage)
-app/api/w, app/api/t, app/api/u  getrennte Werkzeug-Endpunkte
+app/w, app/t, app/u, app/q  Schüler- und Lehrkraftseiten (Wortwolke, Pinnwand, Umfrage, Quiz)
+app/api/w, app/api/t, app/api/u, app/api/q  getrennte Werkzeug-Endpunkte
 app/api/activities   Erstellung
 app/api/cron/cleanup Löschung abgelaufener Daten
 components           QR, Wolke, Text-Pinnwand, gemeinsame Aktivitätsansicht
 lib/wordcloud        Normalisierung, Blacklist, Aggregation
 lib/board            Pinnwand-Aktionen und Rechte
-lib/poll             Umfrage-Stimmen und Auswertung
+lib/poll             Umfrage-Stimmen, zweite Runde und Auswertung
+lib/quiz             Quiz-Ablauf, Punkte und öffentliche Sicht
 lib/db               PostgreSQL/Drizzle und Repository
 lib                  gemeinsame Validierung, Rechte, Polling, Serialisierung
 drizzle              versionierte Datenbank-Migrationen

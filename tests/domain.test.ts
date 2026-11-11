@@ -230,3 +230,68 @@ describe("Text-Pinnwand", () => {
     ).toThrow("warte");
   });
 });
+
+describe("Wörter zusammenfassen", () => {
+  it("fasst zum häufigsten Begriff zusammen und kann wieder trennen", () => {
+    const a = fixture();
+    a.data.maxWords = 20;
+    for (const [i, text] of [
+      "Freunde",
+      "Freunde",
+      "Freundschaft",
+      "Freund",
+      "Spaß",
+    ].entries())
+      applyAction(a, { action: "word", text }, false, `p${i}`);
+    applyAction(
+      a,
+      { action: "merge", words: ["freundschaft", "freunde"] },
+      true,
+      "host",
+    );
+    applyAction(
+      a,
+      { action: "merge", words: ["freund", "freunde"] },
+      true,
+      "host",
+    );
+    let words = snapshot(a, false, "p").data.words;
+    expect(words).toContainEqual({
+      text: "Freunde",
+      normalized: "freunde",
+      count: 4,
+    });
+    expect(words).toHaveLength(2);
+    expect(snapshot(a, false, "p").data.merges).toBeUndefined();
+    expect(snapshot(a, true, "host").data.merges).toEqual({
+      freundschaft: "freunde",
+      freund: "freunde",
+    });
+    expect(() =>
+      applyAction(
+        a,
+        { action: "merge", words: ["spaß", "freunde"] },
+        false,
+        "p",
+      ),
+    ).toThrow();
+    applyAction(
+      a,
+      { action: "blacklist", word: "freunde", restore: false },
+      true,
+      "host",
+    );
+    expect(snapshot(a, true, "host").data.words.map((w) => w.text)).toEqual([
+      "Spaß",
+    ]);
+    applyAction(
+      a,
+      { action: "blacklist", word: "freunde", restore: true },
+      true,
+      "host",
+    );
+    applyAction(a, { action: "unmerge", word: "freunde" }, true, "host");
+    words = snapshot(a, true, "host").data.words;
+    expect(words).toHaveLength(4);
+  });
+});

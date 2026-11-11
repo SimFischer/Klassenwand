@@ -9,7 +9,14 @@ import { WordCloud } from "./word-cloud";
 import { TextBoard } from "./text-board";
 import { PollChart } from "./poll-chart";
 import { PollVote } from "./poll-vote";
-const kindLabel = { w: "WORTWOLKE", t: "TEXT-PINNWAND", u: "UMFRAGE" };
+import { WordMerge } from "./word-merge";
+import { QuizHost, QuizPlayer } from "./quiz";
+const kindLabel = {
+  w: "WORTWOLKE",
+  t: "TEXT-PINNWAND",
+  u: "UMFRAGE",
+  q: "QUIZ",
+};
 export function ActivityView({
   id,
   kind,
@@ -201,20 +208,23 @@ export function ActivityView({
   if (cloudOnly && data.host && kind !== "t") {
     return (
       <main
-        className={`cloud-presentation ${kind === "u" ? "poll-presentation" : ""}`}
+        className={`cloud-presentation ${kind === "u" ? "poll-presentation" : kind === "q" ? "quiz-presentation" : ""}`}
         aria-label={
           kind === "u"
             ? "Umfrage-Ergebnis für die Tafel"
             : "Wortwolke für die Tafel"
         }
       >
-        {kind === "u" ? (
+        {kind === "q" && d.quiz ? (
+          <QuizHost quiz={d.quiz} busy={busy} send={send} />
+        ) : kind === "u" ? (
           <>
             <h1>{data.title}</h1>
             <PollChart
               results={d.results}
               chart={d.chart ?? "bar"}
               voters={d.total}
+              firstVoters={d.firstRound?.voters}
             />
           </>
         ) : (
@@ -249,12 +259,18 @@ export function ActivityView({
                 ? " ABSTIMMUNG GESCHLOSSEN"
                 : " EINGABE PAUSIERT"
               : " LIVE"}
+            {kind === "u" && (d.round ?? 1) === 2 ? " · RUNDE 2" : ""}
             {data.host ? " · LEHRKRAFT-ANSICHT" : ""}
           </p>
           <h1>{data.title}</h1>
         </div>
         <span className="contribution-count">
-          <b>{d.total}</b> {kind === "u" ? "Teilnehmende" : "Beiträge"}
+          <b>{d.total}</b>{" "}
+          {kind === "u"
+            ? "Teilnehmende"
+            : kind === "q"
+              ? "Mitspielende"
+              : "Beiträge"}
         </span>
       </div>
       {data.host && (
@@ -262,19 +278,46 @@ export function ActivityView({
           <button onClick={() => setQr(!qr)}>
             {qr ? "QR-Code ausblenden" : "QR-Code anzeigen"}
           </button>
-          <button
-            disabled={busy}
-            onClick={() => void send({ action: "settings", paused: !d.paused })}
-          >
-            {kind === "u"
-              ? d.paused
-                ? "▶ Abstimmung öffnen"
-                : "Ⅱ Abstimmung schließen"
-              : d.paused
-                ? "▶ Eingaben öffnen"
-                : "Ⅱ Eingaben pausieren"}
-          </button>
-          {kind === "u" ? (
+          {kind === "q" ? (
+            <>
+              <button
+                ref={presentationButton}
+                onClick={() => setCloudOnly(true)}
+                aria-label="Quiz groß ohne Bedienleiste anzeigen"
+              >
+                ⛶ Tafelansicht
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Quiz neu starten? Alle Punkte werden gelöscht, die Spitznamen bleiben.",
+                    )
+                  )
+                    void send({ action: "quiz", step: "restart" });
+                }}
+              >
+                ↻ Quiz neu starten
+              </button>
+            </>
+          ) : (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void send({ action: "settings", paused: !d.paused })
+              }
+            >
+              {kind === "u"
+                ? d.paused
+                  ? "▶ Abstimmung öffnen"
+                  : "Ⅱ Abstimmung schließen"
+                : d.paused
+                  ? "▶ Eingaben öffnen"
+                  : "Ⅱ Eingaben pausieren"}
+            </button>
+          )}
+          {kind === "q" ? null : kind === "u" ? (
             <>
               <button
                 ref={presentationButton}
@@ -315,12 +358,32 @@ export function ActivityView({
               <button
                 disabled={busy}
                 onClick={() => {
-                  if (confirm("Alle Stimmen löschen und neu abstimmen lassen?"))
+                  if (
+                    confirm(
+                      "Alle Stimmen beider Runden löschen und neu beginnen?",
+                    )
+                  )
                     void send({ action: "reset" });
                 }}
               >
                 Stimmen zurücksetzen
               </button>
+              {(d.round ?? 1) === 1 && (
+                <button
+                  disabled={busy || d.total === 0}
+                  title="Ergebnis der ersten Runde sichern und alle erneut abstimmen lassen"
+                  onClick={() => {
+                    if (
+                      confirm(
+                        "Zweite Runde starten? Das Ergebnis der ersten Runde bleibt zum Vergleich erhalten, alle stimmen neu ab. Das Ergebnis wird für Schüler zunächst verborgen.",
+                      )
+                    )
+                      void send({ action: "round2" });
+                  }}
+                >
+                  ↻ Zweite Runde starten
+                </button>
+              )}
             </>
           ) : kind === "w" ? (
             <>
@@ -344,7 +407,11 @@ export function ActivityView({
               <button
                 disabled={busy}
                 onClick={() => {
-                  if (confirm("Alle Begriffe und die Blacklist zurücksetzen?"))
+                  if (
+                    confirm(
+                      "Alle Begriffe, zusammengefassten Wörter und die Blacklist zurücksetzen?",
+                    )
+                  )
                     void send({ action: "reset" });
                 }}
               >
@@ -401,7 +468,14 @@ export function ActivityView({
       )}
       <div className={`activity-content ${qr ? "with-qr" : ""}`}>
         <section className="activity-workspace">
-          {kind === "u" ? (
+          {kind === "q" ? (
+            d.quiz &&
+            (data.host ? (
+              <QuizHost quiz={d.quiz} busy={busy} send={send} />
+            ) : (
+              <QuizPlayer quiz={d.quiz} busy={busy} send={send} />
+            ))
+          ) : kind === "u" ? (
             <>
               {!data.host && (
                 <PollVote
@@ -409,6 +483,7 @@ export function ActivityView({
                   multiple={!!d.multiple}
                   ownVotes={d.ownVotes}
                   paused={d.paused}
+                  round={d.round ?? 1}
                   busy={busy}
                   onVote={async (options) => {
                     const ok = await send({ action: "vote", options });
@@ -422,6 +497,7 @@ export function ActivityView({
                   results={d.results}
                   chart={d.chart ?? "bar"}
                   voters={d.total}
+                  firstVoters={d.firstRound?.voters}
                   ownVotes={data.host ? [] : d.ownVotes}
                 />
               ) : (
@@ -476,6 +552,14 @@ export function ActivityView({
                         }
                       : undefined
                   }
+                />
+              )}
+              {data.host && (
+                <WordMerge
+                  words={d.words}
+                  merges={d.merges ?? {}}
+                  busy={busy}
+                  send={send}
                 />
               )}
               {data.host && (

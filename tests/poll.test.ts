@@ -98,3 +98,41 @@ describe("Umfrage", () => {
     expect(createSchema.safeParse({ ...base, kind: "w" }).success).toBe(true);
   });
 });
+
+describe("Umfrage, zweite Runde", () => {
+  it("bewahrt nur die Summen der ersten Runde und vergleicht", () => {
+    const a = poll();
+    applyAction(a, { action: "vote", options: ["o1"] }, false, "p1");
+    applyAction(a, { action: "vote", options: ["o1"] }, false, "p2");
+    applyAction(a, { action: "settings", showCloud: true }, true, "host");
+    expect(() => applyAction(a, { action: "round2" }, false, "p1")).toThrow();
+    applyAction(a, { action: "round2" }, true, "host");
+    expect(a.data.firstRound).toEqual({
+      voters: 2,
+      counts: { o1: 2, o2: 0, o3: 0 },
+    });
+    expect(a.data.showCloud).toBe(false);
+    expect(snapshot(a, false, "p1").data.ownVotes).toEqual([]);
+    expect(snapshot(a, false, "p1").data.firstRound).toBeUndefined();
+    applyAction(a, { action: "vote", options: ["o2"] }, false, "p1");
+    const s = snapshot(a, true, "host");
+    expect(s.data.round).toBe(2);
+    expect(s.data.total).toBe(1);
+    expect(s.data.results.map((r) => [r.firstCount, r.count])).toEqual([
+      [2, 0],
+      [0, 1],
+      [0, 0],
+    ]);
+    expect(() => applyAction(a, { action: "round2" }, true, "host")).toThrow();
+    applyAction(a, { action: "reset" }, true, "host");
+    expect(a.data.round).toBe(1);
+    expect(
+      snapshot(a, true, "host").data.results[0].firstCount,
+    ).toBeUndefined();
+  });
+  it("startet keine zweite Runde ohne Stimmen", () => {
+    expect(() =>
+      applyAction(poll(), { action: "round2" }, true, "host"),
+    ).toThrow("noch keine Stimmen");
+  });
+});

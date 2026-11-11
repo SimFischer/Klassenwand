@@ -2,6 +2,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Modal } from "@/components/modal";
 import {
+  QuizEditor,
+  emptyQuestion,
+  quizPayload,
+  type DraftQuestion,
+} from "@/components/quiz-editor";
+import {
   participantId,
   remember,
   savedActivities,
@@ -9,7 +15,10 @@ import {
   type Saved,
 } from "@/lib/client";
 export default function Home() {
-  const [tool, setTool] = useState<"w" | "t" | "u" | null>(null),
+  const [tool, setTool] = useState<"w" | "t" | "u" | "q" | null>(null),
+    [questions, setQuestions] = useState<DraftQuestion[]>(() => [
+      emptyQuestion(),
+    ]),
     [saved, setSaved] = useState<Saved[]>([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -27,6 +36,7 @@ export default function Home() {
         .filter(Boolean);
       if (tool === "u" && (options.length < 2 || options.length > 10))
         throw new Error("Bitte gib 2 bis 10 Antwortmöglichkeiten an.");
+      const quiz = tool === "q" ? quizPayload(questions) : [];
       const response = await fetch("/api/activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,6 +56,7 @@ export default function Home() {
                 chart: form.get("chart") === "pie" ? "pie" : "bar",
               }
             : {}),
+          ...(tool === "q" ? { questions: quiz } : {}),
         }),
       });
       const result = await response.json();
@@ -163,8 +174,33 @@ export default function Home() {
               Umfrage erstellen <span>→</span>
             </span>
           </button>
+          <button
+            className="tool-card quiz-card"
+            onClick={() => {
+              setTool("q");
+              setError("");
+            }}
+          >
+            <span className="tool-number">04 / WISSEN PRÜFEN</span>
+            <div className="quiz-illustration" aria-hidden="true">
+              <span>A</span>
+              <span>B</span>
+              <span>C</span>
+              <span>D</span>
+            </div>
+            <h3>
+              Quiz <span>↗</span>
+            </h3>
+            <p>
+              Fragen mit Countdown, Antwortkacheln auf dem Handy und
+              Punkte-Rangliste. Mit Spitznamen, ohne Konto.
+            </p>
+            <span className="card-action">
+              Quiz erstellen <span>→</span>
+            </span>
+          </button>
           <article className="tool-card soon-card">
-            <span className="tool-number">04 / INHALTE VERBINDEN</span>
+            <span className="tool-number">05 / INHALTE VERBINDEN</span>
             <div className="file-illustration" aria-hidden="true">
               <span>▧</span>
               <span>≡</span>
@@ -192,7 +228,13 @@ export default function Home() {
               <li key={item.link}>
                 <a href={item.link}>
                   <span className="activity-icon">
-                    {item.kind === "w" ? "☁" : item.kind === "u" ? "▥" : "▤"}
+                    {item.kind === "w"
+                      ? "☁"
+                      : item.kind === "u"
+                        ? "▥"
+                        : item.kind === "q"
+                          ? "◆"
+                          : "▤"}
                   </span>
                   <span>
                     <strong>{item.title}</strong>
@@ -201,7 +243,9 @@ export default function Home() {
                         ? "Wortwolke"
                         : item.kind === "u"
                           ? "Umfrage"
-                          : "Text-Pinnwand"}{" "}
+                          : item.kind === "q"
+                            ? "Quiz"
+                            : "Text-Pinnwand"}{" "}
                       · {new Date(item.date).toLocaleDateString("de-DE")}
                     </small>
                   </span>
@@ -248,11 +292,17 @@ export default function Home() {
               ? "Eine Frage für alle."
               : tool === "u"
                 ? "Wofür entscheidet ihr euch?"
-                : "Raum für eure Gedanken."}
+                : tool === "q"
+                  ? "Wer weiß es?"
+                  : "Raum für eure Gedanken."}
           </h2>
           <form onSubmit={create}>
             <label>
-              {tool === "t" ? "Titel der Pinnwand" : "Deine Frage"}
+              {tool === "t"
+                ? "Titel der Pinnwand"
+                : tool === "q"
+                  ? "Titel des Quiz"
+                  : "Deine Frage"}
               <input
                 autoFocus
                 required
@@ -263,11 +313,21 @@ export default function Home() {
                     ? "Was macht eine gute Klassengemeinschaft aus?"
                     : tool === "u"
                       ? "Wohin soll unser Wandertag gehen?"
-                      : "Unsere Ideen zur Projektwoche"
+                      : tool === "q"
+                        ? "Europa-Quiz"
+                        : "Unsere Ideen zur Projektwoche"
                 }
               />
             </label>
-            {tool === "u" ? (
+            {tool === "q" ? (
+              <>
+                <QuizEditor questions={questions} onChange={setQuestions} />
+                <p className="hint">
+                  Schüler spielen mit einem selbst gewählten Spitznamen. Es gibt
+                  kein Konto; alles wird nach sieben Tagen automatisch gelöscht.
+                </p>
+              </>
+            ) : tool === "u" ? (
               <>
                 <label>
                   Antwortmöglichkeiten · eine pro Zeile (2 bis 10)

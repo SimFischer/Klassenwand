@@ -1,9 +1,16 @@
 import type { Activity, Snapshot } from "./types";
 import type { Action } from "./validation";
 import { demand } from "./errors";
-import { aggregate, cleanWord, normalizeWord } from "./wordcloud/words";
+import {
+  aggregate,
+  cleanWord,
+  mergeWords,
+  normalizeWord,
+  unmergeWord,
+} from "./wordcloud/words";
 import { boardAction } from "./board/actions";
 import { pollAction, tally } from "./poll/votes";
+import { quizAction, quizView } from "./quiz/quiz";
 export function applyAction(
   activity: Activity,
   a: Action,
@@ -70,15 +77,25 @@ export function applyAction(
         : [...new Set([...d.blacklist, word])];
       return;
     }
+    if (a.action === "merge") {
+      d.merges = mergeWords(d.words, d.blacklist, d.merges ?? {}, a.words);
+      return;
+    }
+    if (a.action === "unmerge") {
+      d.merges = unmergeWord(d.merges ?? {}, normalizeWord(a.word));
+      return;
+    }
     if (a.action === "reset") {
       d.words = [];
       d.blacklist = [];
+      d.merges = {};
       Object.values(d.participants).forEach((p) => (p.count = 0));
       return;
     }
     demand(false, 400, "Aktion passt nicht zur Wortwolke.");
   }
   if (activity.kind === "u") return pollAction(d, a, host, participant);
+  if (activity.kind === "q") return quizAction(d, a, host, participant, now);
   boardAction(d, a, host, participant, now);
 }
 export function snapshot(
@@ -86,7 +103,7 @@ export function snapshot(
   host: boolean,
   participant: string,
 ): Snapshot {
-  const { participants, words, posts, ballots, ...rest } = activity.data;
+  const { participants, words, posts, ballots, quiz, ...rest } = activity.data;
   const visible = posts.filter(
     (p) => host || (!p.hidden && p.approved) || p.participant === participant,
   );
@@ -102,7 +119,11 @@ export function snapshot(
     data: {
       ...rest,
       blacklist: host ? rest.blacklist : [],
-      words: host || rest.showCloud ? aggregate(words, rest.blacklist) : [],
+      words:
+        host || rest.showCloud
+          ? aggregate(words, rest.blacklist, rest.merges)
+          : [],
+      merges: host ? rest.merges : undefined,
       posts: visible
         .filter((p) => !p.parentId || roots.has(p.parentId))
         .map(({ participant: owner, ...p }) => ({
@@ -115,8 +136,12 @@ export function snapshot(
           ? words.length
           : activity.kind === "u"
             ? Object.keys(ballots ?? {}).length
-            : posts.length,
+            : activity.kind === "q"
+              ? Object.keys(quiz?.players ?? {}).length
+              : posts.length,
+      quiz: quiz ? quizView(quiz, host, participant) : undefined,
       results: host || rest.showCloud ? tally(activity.data) : [],
+      firstRound: host || rest.showCloud ? rest.firstRound : undefined,
       ownVotes: ballots?.[participant] ?? [],
     },
   };

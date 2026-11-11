@@ -43,6 +43,20 @@ export async function POST(request: Request) {
                 ballots: {},
               }
             : {}),
+          ...(input.kind === "q"
+            ? {
+                quiz: {
+                  questions: input.questions.map((q) => ({
+                    ...q,
+                    id: newId(),
+                  })),
+                  phase: "lobby" as const,
+                  current: 0,
+                  startedAt: 0,
+                  players: {},
+                },
+              }
+            : {}),
         },
       },
       input.participantId,
